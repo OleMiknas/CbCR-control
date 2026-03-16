@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CbCR Control | AU Consulting</title>
+<meta name="description" content="CbCR Control - Workflow and validation platform for tax advisory firms managing Public CbCR readiness projects.">
+<meta property="og:title" content="CbCR Control | AU Consulting">
+<meta property="og:description" content="Interactive prototype - advisor workflow platform for EU Public Country-by-Country Reporting">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'><circle cx='14' cy='14' r='12' stroke='%23C9A84C' stroke-width='1.5' fill='none' opacity='0.6'/><circle cx='14' cy='14' r='2.5' fill='%23C9A84C'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0B0F1A; overflow-x: hidden; }
+  #root { min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #111827; }
+  ::-webkit-scrollbar-thumb { background: #1E2A42; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2d3a56; }
+  ::selection { background: rgba(201,168,76,0.3); color: #E8ECF4; }
+  select option { background: #162032; color: #E8ECF4; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// AU CONSULTING DESIGN SYSTEM
+// Royal Blue (#1B2B5B) + Gold (#C9A84C)
+// Font: Outfit (geometric, futuristic — closest CDN match to Horizon)
+// ═══════════════════════════════════════════════════════════════
+
+const AU = {
+  // Core palette
+  navy: "#1B2B5B",
+  navyDeep: "#111D3E",
+  navyDark: "#0C1528",
+  navyMid: "#1E3168",
+  navyLight: "#243A75",
+  gold: "#C9A84C",
+  goldLight: "#DCC06E",
+  goldDim: "rgba(201,168,76,0.15)",
+  goldSubtle: "rgba(201,168,76,0.06)",
+
+  // Surfaces
+  bg: "#0B0F1A",
+  surface: "#111827",
+  surfaceRaised: "#162032",
+  surfaceHover: "#1A2740",
+  
+  // Borders
+  border: "#1E2A42",
+  borderGold: "rgba(201,168,76,0.2)",
+  borderActive: "rgba(201,168,76,0.4)",
+
+  // Text
+  text: "#E8ECF4",
+  textSoft: "#A0AECB",
+  textMuted: "#6B7A96",
+  textDim: "#3E4E6A",
+
+  // Status
+  green: "#34D399",
+  greenBg: "rgba(52,211,153,0.08)",
+  red: "#F87171",
+  redBg: "rgba(248,113,113,0.08)",
+  amber: "#FBBF24",
+  amberBg: "rgba(251,191,36,0.08)",
+  purple: "#A78BFA",
+  purpleBg: "rgba(167,139,250,0.08)",
+  blue: "#60A5FA",
+  blueBg: "rgba(96,165,250,0.08)",
+};
+
+// ─── Sample Data ────────────────────────────────────────────────
+const CLIENTS = [
+  { id: "c1", name: "Nordveld Group", legalName: "Nordveld Holding B.V.", hq: "NL", industry: "Industrial Manufacturing", year: 2025, status: "under_review", deadline: "2026-06-30", readinessScore: 72, issueCount: 5, jurisdictions: 8 },
+  { id: "c2", name: "Arcos Logistics", legalName: "Arcos International S.A.", hq: "LU", industry: "Transport & Logistics", year: 2025, status: "waiting_for_client", deadline: "2026-06-30", readinessScore: 41, issueCount: 12, jurisdictions: 14 },
+  { id: "c3", name: "Solenne Pharma", legalName: "Solenne Pharma AG", hq: "CH", industry: "Pharmaceuticals", year: 2025, status: "uploaded", deadline: "2026-06-30", readinessScore: 18, issueCount: 0, jurisdictions: 6 },
+  { id: "c4", name: "Crestfield Energy", legalName: "Crestfield Energy Plc", hq: "GB", industry: "Energy & Utilities", year: 2025, status: "ready", deadline: "2026-06-30", readinessScore: 96, issueCount: 0, jurisdictions: 11 },
+  { id: "c5", name: "Havenbrook Capital", legalName: "Havenbrook Capital Partners B.V.", hq: "NL", industry: "Financial Services", year: 2025, status: "not_started", deadline: "2026-06-30", readinessScore: 0, issueCount: 0, jurisdictions: 0 },
+];
+
+const JURISDICTION_DATA = [
+  { country: "NL", countryName: "Netherlands", revenue: 245000000, profit: 38000000, taxPaid: 9500000, employees: 1240, entities: 3 },
+  { country: "DE", countryName: "Germany", revenue: 189000000, profit: 22000000, taxPaid: 6600000, employees: 890, entities: 2 },
+  { country: "FR", countryName: "France", revenue: 134000000, profit: 15000000, taxPaid: 3750000, employees: 620, entities: 1 },
+  { country: "US", countryName: "United States", revenue: 312000000, profit: 51000000, taxPaid: 10710000, employees: 1560, entities: 4 },
+  { country: "CN", countryName: "China", revenue: 98000000, profit: 14000000, taxPaid: 3500000, employees: 420, entities: 1 },
+  { country: "SG", countryName: "Singapore", revenue: 67000000, profit: 28000000, taxPaid: 1400000, employees: 45, entities: 1 },
+  { country: "IE", countryName: "Ireland", revenue: 156000000, profit: 89000000, taxPaid: 11100000, employees: 28, entities: 2 },
+  { country: "BR", countryName: "Brazil", revenue: 42000000, profit: -3000000, taxPaid: 0, employees: 210, entities: 1 },
+];
+
+const VALIDATION_ISSUES = [
+  { id: "v1", rule: "PLAUS-001", severity: "high", country: "SG", message: "Profit per employee unusually high: €622K vs group avg €31K. Potential transfer pricing risk.", status: "open", category: "plausibility" },
+  { id: "v2", rule: "PLAUS-002", severity: "high", country: "IE", message: "Revenue/employee ratio (€5.6M) is 18x the group average. Review substance requirements.", status: "open", category: "plausibility" },
+  { id: "v3", rule: "ANOM-001", severity: "high", country: "IE", message: "Effective tax rate 12.5% is significantly below group average of 25.1%. Flag for review.", status: "reviewed", category: "anomaly" },
+  { id: "v4", rule: "COMP-001", severity: "medium", country: "BR", message: "Negative profit but zero tax paid reported. Verify no withholding taxes or minimum taxes apply.", status: "open", category: "completeness" },
+  { id: "v5", rule: "COMP-002", severity: "medium", country: "SG", message: "Only 45 employees reported for €67M revenue entity. Confirm headcount includes contractors if material.", status: "open", category: "completeness" },
+];
+
+const UPLOAD_COLUMNS = [
+  { source: "Country/Region", mapped: "country_code", confidence: 0.95 },
+  { source: "Total Rev (EUR)", mapped: "revenue", confidence: 0.92 },
+  { source: "PBT", mapped: "profit_before_tax", confidence: 0.88 },
+  { source: "CIT Paid", mapped: "tax_paid", confidence: 0.85 },
+  { source: "Headcount (FTE)", mapped: "employees", confidence: 0.90 },
+  { source: "Subs", mapped: "entity_count", confidence: 0.72 },
+  { source: "Ret. Earnings", mapped: "retained_earnings", confidence: 0.80 },
+  { source: "Activity Code", mapped: "activity_type", confidence: 0.65 },
+];
+
+const TARGET_FIELDS = ["country_code", "revenue", "profit_before_tax", "tax_paid", "employees", "entity_count", "retained_earnings", "activity_type", "tax_accrued", "stated_capital", "tangible_assets"];
+
+const DATA_REQUESTS = [
+  { id: "r1", title: "Missing entity breakdown for Singapore", fields: ["entity_name", "entity_type"], country: "SG", status: "open", dueDate: "2026-04-15" },
+  { id: "r2", title: "Confirm Brazil tax treatment", fields: ["tax_paid", "tax_accrued"], country: "BR", status: "in_progress", dueDate: "2026-04-10" },
+];
+
+// ─── Helpers ────────────────────────────────────────────────────
+const fmt = (n) => { if (n == null) return "\u2014"; if (Math.abs(n) >= 1e6) return `\u20AC${(n/1e6).toFixed(1)}M`; if (Math.abs(n) >= 1e3) return `\u20AC${(n/1e3).toFixed(0)}K`; return `\u20AC${n}`; };
+const fmtNum = (n) => n == null ? "\u2014" : n.toLocaleString();
+
+const statusConfig = {
+  not_started: { label: "Not Started", color: AU.textMuted, bg: AU.surfaceRaised },
+  uploaded: { label: "Uploaded", color: AU.blue, bg: AU.blueBg },
+  validating: { label: "Validating", color: AU.amber, bg: AU.amberBg },
+  waiting_for_client: { label: "Awaiting Client", color: AU.amber, bg: AU.amberBg },
+  under_review: { label: "Under Review", color: AU.purple, bg: AU.purpleBg },
+  ready: { label: "Ready", color: AU.green, bg: AU.greenBg },
+};
+const severityConfig = {
+  high: { color: AU.red, bg: AU.redBg, label: "High" },
+  medium: { color: AU.amber, bg: AU.amberBg, label: "Medium" },
+  low: { color: AU.blue, bg: AU.blueBg, label: "Low" },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// DESIGN SYSTEM COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+
+// Gold accent line — the AU signature element
+function GoldRule({ width = "100%", height = 2, style = {} }) {
+  return <div style={{ width, height, background: `linear-gradient(90deg, ${AU.gold}, ${AU.goldLight}, transparent)`, borderRadius: 1, ...style }} />;
+}
+
+// Compass mark — simplified brand motif
+function CompassMark({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="12" stroke={AU.gold} strokeWidth="1.5" opacity="0.4" />
+      <circle cx="14" cy="14" r="6" stroke={AU.gold} strokeWidth="1" opacity="0.25" />
+      <line x1="14" y1="1" x2="14" y2="7" stroke={AU.gold} strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="14" y1="21" x2="14" y2="27" stroke={AU.gold} strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="1" y1="14" x2="7" y2="14" stroke={AU.gold} strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="21" y1="14" x2="27" y2="14" stroke={AU.gold} strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="14" cy="14" r="2.5" fill={AU.gold} />
+    </svg>
+  );
+}
+
+function Badge({ label, color, bg }) {
+  return (
+    <span style={{
+      display: "inline-block", padding: "3px 10px", borderRadius: 3,
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+      color, background: bg, textTransform: "uppercase",
+      fontFamily: "'Outfit', sans-serif",
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function ScoreRing({ score, size = 48 }) {
+  const r = (size - 6) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - (score / 100) * c;
+  const color = score >= 80 ? AU.green : score >= 50 ? AU.gold : score < 1 ? AU.textDim : AU.red;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={AU.border} strokeWidth={2.5} />
+        {score > 0 && <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={2.5} strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" />}
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.26, fontWeight: 700, color, fontFamily: "'Outfit', sans-serif" }}>{score}</div>
+    </div>
+  );
+}
+
+function Card({ children, style = {}, onClick, gold = false }) {
+  const [h, setH] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setH(true)}
+      onMouseLeave={() => setH(false)}
+      style={{
+        background: AU.surface,
+        border: `1px solid ${gold ? AU.borderGold : h && onClick ? AU.borderGold : AU.border}`,
+        borderRadius: 6,
+        padding: 20,
+        transition: "all 0.2s ease",
+        cursor: onClick ? "pointer" : "default",
+        transform: h && onClick ? "translateY(-1px)" : "none",
+        boxShadow: gold ? `0 0 20px ${AU.goldSubtle}` : "none",
+        position: "relative",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      {gold && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, transparent, ${AU.gold}, transparent)` }} />}
+      {children}
+    </div>
+  );
+}
+
+function Button({ children, onClick, variant = "primary", size = "md", style = {} }) {
+  const [h, setH] = useState(false);
+  const base = { borderRadius: 4, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", fontFamily: "'Outfit', sans-serif", display: "inline-flex", alignItems: "center", gap: 6, letterSpacing: "0.02em" };
+  const variants = {
+    primary: { background: h ? AU.gold : AU.goldDim, color: h ? AU.navyDark : AU.gold, border: `1px solid ${h ? AU.gold : AU.borderGold}` },
+    secondary: { background: h ? AU.surfaceHover : "transparent", color: AU.textSoft, border: `1px solid ${AU.border}` },
+    ghost: { background: h ? AU.surfaceRaised : "transparent", color: AU.textMuted, border: "1px solid transparent" },
+  };
+  const sizes = { sm: { padding: "5px 14px", fontSize: 11 }, md: { padding: "8px 18px", fontSize: 12 }, lg: { padding: "10px 24px", fontSize: 13 } };
+  return <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} style={{ ...base, ...variants[variant], ...sizes[size], ...style }}>{children}</button>;
+}
+
+function StatCard({ label, value, sub }) {
+  return (
+    <div style={{ flex: 1, minWidth: 130 }}>
+      <div style={{ fontSize: 10, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, fontFamily: "'Outfit', sans-serif" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: AU.textMuted, marginTop: 5 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ─── Navigation ─────────────────────────────────────────────────
+function NavBar({ onNavigate, breadcrumbs }) {
+  return (
+    <div style={{ background: AU.navyDark, borderBottom: `1px solid ${AU.border}`, position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", height: 54, gap: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => onNavigate("portfolio")}>
+          <CompassMark size={26} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em", fontFamily: "'Outfit', sans-serif", color: AU.text }}>
+              CbCR <span style={{ color: AU.gold }}>CONTROL</span>
+            </div>
+            <div style={{ fontSize: 8, letterSpacing: "0.2em", color: AU.textMuted, textTransform: "uppercase", marginTop: -1 }}>by AU Consulting</div>
+          </div>
+        </div>
+
+        {breadcrumbs?.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: AU.textMuted }}>
+            {breadcrumbs.map((bc, i) => (
+              <span key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: AU.textDim, fontSize: 10 }}>/</span>
+                <span style={{ cursor: bc.onClick ? "pointer" : "default", color: i === breadcrumbs.length - 1 ? AU.text : AU.textMuted }} onClick={bc.onClick}>{bc.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ fontSize: 10, color: AU.gold, padding: "3px 10px", background: AU.goldSubtle, borderRadius: 3, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "'Outfit', sans-serif", border: `1px solid ${AU.borderGold}` }}>
+            PROTOTYPE
+          </span>
+          <div style={{
+            width: 30, height: 30, borderRadius: "50%", background: AU.goldDim,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 700, color: AU.gold, fontFamily: "'Outfit', sans-serif",
+            border: `1px solid ${AU.borderGold}`,
+          }}>OA</div>
+        </div>
+      </div>
+      <GoldRule height={1} style={{ opacity: 0.3 }} />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIEWS
+// ═══════════════════════════════════════════════════════════════
+
+function PortfolioView({ onSelectClient }) {
+  const [filter, setFilter] = useState("all");
+  const filtered = filter === "all" ? CLIENTS : CLIENTS.filter(c => c.status === filter);
+  const totalIssues = CLIENTS.reduce((s, c) => s + c.issueCount, 0);
+  const avgScore = Math.round(CLIENTS.filter(c => c.readinessScore > 0).reduce((s, c) => s + c.readinessScore, 0) / CLIENTS.filter(c => c.readinessScore > 0).length);
+
+  return (
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      <div style={{ padding: "36px 0 8px", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>Portfolio Dashboard</div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.01em", fontFamily: "'Outfit', sans-serif" }}>FY 2025 Readiness Overview</h1>
+        </div>
+        <Button variant="secondary" size="sm">+ Add Client</Button>
+      </div>
+      <GoldRule width={48} style={{ marginBottom: 28 }} />
+
+      <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 150 }}><StatCard label="Active Clients" value={CLIENTS.length} sub="across 4 HQ countries" /></Card>
+        <Card gold style={{ flex: 1, minWidth: 150 }}><StatCard label="Open Issues" value={totalIssues} sub={`${CLIENTS.filter(c=>c.issueCount>0).length} clients affected`} /></Card>
+        <Card style={{ flex: 1, minWidth: 150 }}><StatCard label="Avg Readiness" value={`${avgScore}%`} sub="excl. not started" /></Card>
+        <Card style={{ flex: 1, minWidth: 150 }}><StatCard label="Next Deadline" value="30 Jun" sub="2026 filing period" /></Card>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+        {[{ key: "all", label: "All" }, ...Object.entries(statusConfig).map(([k, v]) => ({ key: k, label: v.label }))].map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)} style={{
+            padding: "5px 14px", borderRadius: 3, fontSize: 11, fontWeight: 600, cursor: "pointer",
+            fontFamily: "'Outfit', sans-serif", border: "none", transition: "all 0.15s", letterSpacing: "0.02em",
+            background: filter === f.key ? AU.goldDim : "transparent",
+            color: filter === f.key ? AU.gold : AU.textMuted,
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+              {["Client", "HQ", "Status", "Readiness", "Issues", "Jurisdictions", "Deadline"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "11px 16px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(client => {
+              const st = statusConfig[client.status];
+              return (
+                <tr key={client.id} onClick={() => onSelectClient(client)} style={{ borderBottom: `1px solid ${AU.border}`, cursor: "pointer", transition: "background 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = AU.surfaceRaised; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                  <td style={{ padding: "14px 16px" }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>{client.name}</div>
+                    <div style={{ fontSize: 11, color: AU.textMuted }}>{client.industry}</div>
+                  </td>
+                  <td style={{ padding: "14px 16px" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: AU.textSoft, fontFamily: "'Outfit', sans-serif" }}>{client.hq}</span>
+                  </td>
+                  <td style={{ padding: "14px 16px" }}><Badge label={st.label} color={st.color} bg={st.bg} /></td>
+                  <td style={{ padding: "14px 16px" }}><ScoreRing score={client.readinessScore} size={36} /></td>
+                  <td style={{ padding: "14px 16px" }}>
+                    {client.issueCount > 0
+                      ? <span style={{ color: AU.red, fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: 13 }}>{client.issueCount}</span>
+                      : <span style={{ color: AU.textDim }}>0</span>}
+                  </td>
+                  <td style={{ padding: "14px 16px", color: AU.textMuted, fontSize: 13 }}>{client.jurisdictions || "\u2014"}</td>
+                  <td style={{ padding: "14px 16px", fontSize: 12, color: AU.textMuted }}>{client.deadline}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+function ClientDetailView({ client }) {
+  const [activeTab, setActiveTab] = useState("overview");
+  const st = statusConfig[client.status];
+  const isDemo = client.id === "c1";
+
+  const tabs = [
+    { key: "overview", label: "Overview" },
+    { key: "data", label: "Jurisdiction Data" },
+    { key: "upload", label: "Upload & Mapping" },
+    { key: "issues", label: `Issues${isDemo ? ` (${VALIDATION_ISSUES.length})` : ""}` },
+    { key: "requests", label: "Data Requests" },
+    { key: "report", label: "Report" },
+  ];
+
+  return (
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      <div style={{ padding: "32px 0 0" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
+          <div>
+            <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>Client Workspace</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, fontFamily: "'Outfit', sans-serif" }}>{client.name}</h1>
+            <p style={{ color: AU.textMuted, margin: "4px 0 0", fontSize: 12 }}>{client.legalName} \u00B7 FY {client.year}</p>
+          </div>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <Badge label={st.label} color={st.color} bg={st.bg} />
+            <ScoreRing score={client.readinessScore} size={44} />
+          </div>
+        </div>
+        <GoldRule width={48} style={{ margin: "12px 0 20px" }} />
+
+        <div style={{ display: "flex", gap: 2, borderBottom: `1px solid ${AU.border}`, marginBottom: 24 }}>
+          {tabs.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+              padding: "10px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif", border: "none", background: "transparent",
+              color: activeTab === tab.key ? AU.gold : AU.textMuted,
+              borderBottom: activeTab === tab.key ? `2px solid ${AU.gold}` : "2px solid transparent",
+              transition: "all 0.15s", marginBottom: -1, letterSpacing: "0.02em",
+            }}>{tab.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "overview" && <OverviewTab client={client} isDemo={isDemo} onTab={setActiveTab} />}
+      {activeTab === "data" && isDemo && <DataTab />}
+      {activeTab === "upload" && isDemo && <UploadTab />}
+      {activeTab === "issues" && isDemo && <IssuesTab />}
+      {activeTab === "requests" && isDemo && <RequestsTab />}
+      {activeTab === "report" && isDemo && <ReportTab client={client} />}
+      {!isDemo && activeTab !== "overview" && (
+        <Card style={{ textAlign: "center", padding: 48, color: AU.textMuted }}>
+          <CompassMark size={40} />
+          <div style={{ fontSize: 13, marginTop: 16 }}>Select Nordveld Group from the portfolio to explore the full workflow demo.</div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function OverviewTab({ client, isDemo, onTab }) {
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Headquarters" value={client.hq} sub={client.industry} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Jurisdictions" value={client.jurisdictions} sub={isDemo ? "8 countries filed" : ""} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Open Issues" value={isDemo ? VALIDATION_ISSUES.filter(i=>i.status==="open").length : client.issueCount} sub={isDemo ? `${VALIDATION_ISSUES.filter(i=>i.severity==="high").length} high severity` : ""} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Scope" value="In scope" sub="\u20AC750M+ threshold" /></Card>
+      </div>
+
+      {isDemo && (
+        <>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Readiness Pipeline</div>
+          <Card gold style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              {[
+                { step: "Upload", done: true },
+                { step: "Field Mapping", done: true },
+                { step: "Validation", done: true },
+                { step: "Issue Resolution", done: false, active: true },
+                { step: "Client Data", done: false },
+                { step: "Report", done: false },
+              ].map((s, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 700, fontFamily: "'Outfit', sans-serif",
+                    background: s.done ? AU.gold : s.active ? AU.goldDim : AU.surfaceRaised,
+                    color: s.done ? AU.navyDark : s.active ? AU.gold : AU.textDim,
+                    border: s.active ? `1.5px solid ${AU.gold}` : s.done ? "none" : `1px solid ${AU.border}`,
+                  }}>
+                    {s.done ? "\u2713" : i + 1}
+                  </div>
+                  <span style={{ fontSize: 12, fontFamily: "'Outfit', sans-serif", color: s.done ? AU.text : s.active ? AU.gold : AU.textDim, fontWeight: s.active ? 700 : 500 }}>
+                    {s.step}
+                  </span>
+                  {i < 5 && <span style={{ color: AU.textDim, margin: "0 2px", fontSize: 10 }}>\u2192</span>}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Activity Log</div>
+          <Card>
+            {[
+              { time: "2 hours ago", action: "Validation completed", detail: "5 issues detected across 4 jurisdictions", user: "System" },
+              { time: "3 hours ago", action: "Field mapping confirmed", detail: "8 source columns mapped to CbCR fields", user: "J. van der Berg" },
+              { time: "Yesterday", action: "Data uploaded", detail: "nordveld_cbcr_2025_v2.xlsx (8 jurisdictions)", user: "J. van der Berg" },
+              { time: "3 days ago", action: "Client workspace created", detail: "FY 2025 reporting period opened", user: "O. Abboud" },
+            ].map((a, i) => (
+              <div key={i} style={{ display: "flex", gap: 16, padding: "12px 0", borderBottom: i < 3 ? `1px solid ${AU.border}` : "none" }}>
+                <span style={{ fontSize: 11, color: AU.textDim, minWidth: 90, flexShrink: 0 }}>{a.time}</span>
+                <div style={{ width: 4, borderRadius: 2, background: i === 0 ? AU.gold : AU.border, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{a.action}</div>
+                  <div style={{ fontSize: 11, color: AU.textMuted }}>{a.detail} \u00B7 {a.user}</div>
+                </div>
+              </div>
+            ))}
+          </Card>
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <Button onClick={() => onTab("issues")}>Review Issues</Button>
+            <Button variant="secondary" onClick={() => onTab("report")}>Generate Report</Button>
+          </div>
+        </>
+      )}
+      {!isDemo && (
+        <Card style={{ textAlign: "center", padding: 48, color: AU.textMuted }}>
+          <CompassMark size={40} />
+          <div style={{ fontSize: 13, marginTop: 16 }}>Select Nordveld Group from the portfolio to explore the full workflow demo.</div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function DataTab() {
+  const totals = JURISDICTION_DATA.reduce((a, j) => ({ rev: a.rev + j.revenue, prof: a.prof + j.profit, tax: a.tax + j.taxPaid, emp: a.emp + j.employees, ent: a.ent + j.entities }), { rev: 0, prof: 0, tax: 0, emp: 0, ent: 0 });
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Total Revenue" value={fmt(totals.rev)} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Total Profit" value={fmt(totals.prof)} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Total Tax Paid" value={fmt(totals.tax)} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Group ETR" value={`${((totals.tax / totals.prof) * 100).toFixed(1)}%`} /></Card>
+      </div>
+      <Card style={{ padding: 0, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+              {["Jurisdiction", "Revenue", "Profit (PBT)", "Tax Paid", "ETR", "Employees", "Entities", ""].map(h => (
+                <th key={h} style={{ textAlign: h === "Jurisdiction" ? "left" : "right", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {JURISDICTION_DATA.map(j => {
+              const etr = j.profit > 0 ? ((j.taxPaid / j.profit) * 100).toFixed(1) : "\u2014";
+              const hasIssue = VALIDATION_ISSUES.some(i => i.country === j.country);
+              return (
+                <tr key={j.country} style={{ borderBottom: `1px solid ${AU.border}` }}
+                  onMouseEnter={e => e.currentTarget.style.background = AU.surfaceRaised}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                  <td style={{ padding: "11px 14px" }}>
+                    <span style={{ fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: 12, marginRight: 8, color: AU.gold }}>{j.country}</span>
+                    <span style={{ color: AU.textSoft, fontSize: 12 }}>{j.countryName}</span>
+                  </td>
+                  <td style={{ padding: "11px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmt(j.revenue)}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: j.profit < 0 ? AU.red : AU.text }}>{fmt(j.profit)}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmt(j.taxPaid)}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13, color: etr !== "\u2014" && parseFloat(etr) < 15 ? AU.amber : AU.text }}>{etr !== "\u2014" ? `${etr}%` : etr}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmtNum(j.employees)}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right", fontSize: 13 }}>{j.entities}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "right" }}>{hasIssue && <span style={{ fontSize: 8, color: AU.red }}>\u25CF</span>}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: AU.surfaceRaised }}>
+              <td style={{ padding: "11px 14px", fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: 12 }}>Total</td>
+              <td style={{ padding: "11px 14px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmt(totals.rev)}</td>
+              <td style={{ padding: "11px 14px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmt(totals.prof)}</td>
+              <td style={{ padding: "11px 14px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmt(totals.tax)}</td>
+              <td style={{ padding: "11px 14px", textAlign: "right", fontWeight: 700, fontSize: 13 }}>{((totals.tax / totals.prof) * 100).toFixed(1)}%</td>
+              <td style={{ padding: "11px 14px", textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", fontSize: 13 }}>{fmtNum(totals.emp)}</td>
+              <td style={{ padding: "11px 14px", textAlign: "right", fontWeight: 700, fontSize: 13 }}>{totals.ent}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+function UploadTab() {
+  const [mapped, setMapped] = useState(UPLOAD_COLUMNS.map(c => c.mapped));
+  const [confirmed, setConfirmed] = useState(false);
+  return (
+    <div>
+      <Card style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 6, background: AU.goldDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, border: `1px solid ${AU.borderGold}` }}>📄</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>nordveld_cbcr_2025_v2.xlsx</div>
+            <div style={{ fontSize: 11, color: AU.textMuted }}>J. van der Berg \u00B7 3 hours ago \u00B7 8 rows, 8 columns</div>
+          </div>
+          <Badge label="Parsed" color={AU.green} bg={AU.greenBg} />
+        </div>
+      </Card>
+
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Field Mapping</div>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+              {["Source Column", "CbCR Target Field", "Confidence", ""].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {UPLOAD_COLUMNS.map((col, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid ${AU.border}` }}>
+                <td style={{ padding: "10px 14px" }}>
+                  <code style={{ fontSize: 11, background: AU.surfaceRaised, padding: "2px 8px", borderRadius: 3, color: AU.gold, border: `1px solid ${AU.borderGold}` }}>{col.source}</code>
+                </td>
+                <td style={{ padding: "10px 14px" }}>
+                  <select value={mapped[i]} onChange={e => { const n = [...mapped]; n[i] = e.target.value; setMapped(n); }}
+                    style={{ background: AU.surfaceRaised, border: `1px solid ${AU.border}`, borderRadius: 3, padding: "6px 10px", color: AU.text, fontSize: 12, fontFamily: "'Outfit', sans-serif", cursor: "pointer", minWidth: 170 }}>
+                    <option value="">Not mapped</option>
+                    {TARGET_FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </td>
+                <td style={{ padding: "10px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 56, height: 3, background: AU.border, borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ width: `${col.confidence * 100}%`, height: "100%", borderRadius: 2, background: col.confidence > 0.85 ? AU.green : col.confidence > 0.7 ? AU.amber : AU.red }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: AU.textMuted, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>{(col.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                </td>
+                <td style={{ padding: "10px 14px" }}>{col.confidence >= 0.85 && <span style={{ fontSize: 10, color: AU.green, fontWeight: 600 }}>\u2713 Auto</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+      <div style={{ display: "flex", gap: 10, marginTop: 18, alignItems: "center" }}>
+        <Button onClick={() => setConfirmed(true)}>Confirm Mapping & Validate</Button>
+        {confirmed && <span style={{ fontSize: 12, color: AU.green, fontWeight: 600 }}>\u2713 Mapping confirmed. Running validation...</span>}
+      </div>
+    </div>
+  );
+}
+
+function IssuesTab() {
+  const [issues, setIssues] = useState(VALIDATION_ISSUES);
+  const [selectedId, setSelectedId] = useState(null);
+  const toggle = (id) => setIssues(p => p.map(i => i.id === id ? { ...i, status: i.status === "open" ? "reviewed" : i.status === "reviewed" ? "resolved" : "open" } : i));
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="Total" value={issues.length} /></Card>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="High" value={issues.filter(i => i.severity === "high").length} /></Card>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="Open" value={issues.filter(i => i.status === "open").length} /></Card>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="Resolved" value={issues.filter(i => i.status === "resolved").length} /></Card>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {issues.map(issue => {
+          const sev = severityConfig[issue.severity];
+          const sel = selectedId === issue.id;
+          return (
+            <Card key={issue.id} onClick={() => setSelectedId(sel ? null : issue.id)}
+              style={{ padding: 0, cursor: "pointer", border: sel ? `1px solid ${AU.borderGold}` : undefined }}>
+              <div style={{ padding: "13px 16px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <Badge label={sev.label} color={sev.color} bg={sev.bg} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                    <code style={{ fontSize: 10, color: AU.textDim }}>{issue.rule}</code>
+                    <span style={{ fontSize: 10, color: AU.textDim }}>\u00B7</span>
+                    <span style={{ fontSize: 11, color: AU.gold, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{issue.country}</span>
+                    <span style={{ fontSize: 10, color: AU.textDim, background: AU.surfaceRaised, padding: "1px 6px", borderRadius: 2 }}>{issue.category}</span>
+                  </div>
+                  <div style={{ fontSize: 12, lineHeight: 1.6, color: AU.textSoft }}>{issue.message}</div>
+                </div>
+                <Badge label={issue.status} color={issue.status === "resolved" ? AU.green : issue.status === "reviewed" ? AU.purple : AU.textMuted} bg={issue.status === "resolved" ? AU.greenBg : issue.status === "reviewed" ? AU.purpleBg : AU.surfaceRaised} />
+              </div>
+              {sel && (
+                <div style={{ padding: "0 16px 13px", borderTop: `1px solid ${AU.border}`, paddingTop: 12, display: "flex", gap: 8 }}>
+                  <Button size="sm" onClick={e => { e.stopPropagation(); toggle(issue.id); }}>
+                    {issue.status === "open" ? "Mark Reviewed" : issue.status === "reviewed" ? "Resolve" : "Reopen"}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={e => e.stopPropagation()}>Comment</Button>
+                  <Button size="sm" variant="secondary" onClick={e => e.stopPropagation()}>Request Data</Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RequestsTab() {
+  const [showForm, setShowForm] = useState(false);
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 4, fontFamily: "'Outfit', sans-serif" }}>Data Requests</div>
+          <p style={{ fontSize: 12, color: AU.textMuted, margin: 0 }}>Request missing information through a structured workflow.</p>
+        </div>
+        <Button onClick={() => setShowForm(!showForm)}>+ New Request</Button>
+      </div>
+      {showForm && (
+        <Card gold style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, fontFamily: "'Outfit', sans-serif" }}>New Data Request</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <input placeholder="e.g. Missing entity details for Singapore" style={{ width: "100%", padding: "8px 12px", background: AU.surfaceRaised, border: `1px solid ${AU.border}`, borderRadius: 3, color: AU.text, fontSize: 12, fontFamily: "'Outfit', sans-serif", boxSizing: "border-box" }} />
+            <div style={{ display: "flex", gap: 10 }}>
+              <select style={{ flex: 1, padding: "8px 12px", background: AU.surfaceRaised, border: `1px solid ${AU.border}`, borderRadius: 3, color: AU.text, fontSize: 12, fontFamily: "'Outfit', sans-serif" }}>
+                <option>Jurisdiction...</option>
+                {JURISDICTION_DATA.map(j => <option key={j.country}>{j.country} - {j.countryName}</option>)}
+              </select>
+              <input type="date" style={{ flex: 1, padding: "8px 12px", background: AU.surfaceRaised, border: `1px solid ${AU.border}`, borderRadius: 3, color: AU.text, fontSize: 12, fontFamily: "'Outfit', sans-serif", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button size="sm" onClick={() => setShowForm(false)}>Send Request</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            </div>
+          </div>
+        </Card>
+      )}
+      {DATA_REQUESTS.map(req => (
+        <Card key={req.id} style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif", marginBottom: 3 }}>{req.title}</div>
+              <div style={{ fontSize: 11, color: AU.textMuted }}><span style={{ color: AU.gold, fontWeight: 600 }}>{req.country}</span> \u00B7 Due: {req.dueDate} \u00B7 Fields: {req.fields.join(", ")}</div>
+            </div>
+            <Badge label={req.status === "in_progress" ? "In Progress" : "Open"} color={req.status === "in_progress" ? AU.amber : AU.textMuted} bg={req.status === "in_progress" ? AU.amberBg : AU.surfaceRaised} />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function ReportTab({ client }) {
+  const [gen, setGen] = useState(false);
+  const [done, setDone] = useState(false);
+  const go = () => { setGen(true); setTimeout(() => { setGen(false); setDone(true); }, 2000); };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 4, fontFamily: "'Outfit', sans-serif" }}>Readiness Report</div>
+          <p style={{ fontSize: 12, color: AU.textMuted, margin: 0 }}>Generate a professional PDF for client delivery.</p>
+        </div>
+        <Button onClick={go} style={{ opacity: gen ? 0.6 : 1 }}>{gen ? "Generating..." : done ? "Regenerate" : "Generate Report"}</Button>
+      </div>
+
+      {done && (
+        <Card gold style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 6, background: AU.goldDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, border: `1px solid ${AU.borderGold}` }}>📑</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>CbCR Readiness Report - {client.name}</div>
+              <div style={{ fontSize: 11, color: AU.textMuted }}>Generated just now \u00B7 v1 \u00B7 4 pages</div>
+            </div>
+            <Button size="sm" variant="secondary">Download PDF</Button>
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <div style={{ fontSize: 10, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>Report Preview</div>
+        <div style={{ background: AU.surfaceRaised, borderRadius: 6, padding: 24, border: `1px solid ${AU.border}` }}>
+          <div style={{ textAlign: "center", marginBottom: 24, paddingBottom: 20, borderBottom: `1px solid ${AU.border}` }}>
+            <CompassMark size={32} />
+            <div style={{ fontSize: 9, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.2em", marginTop: 8, fontWeight: 700 }}>CbCR Control \u00B7 Readiness Report</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'Outfit', sans-serif", marginTop: 8 }}>{client.legalName}</div>
+            <div style={{ fontSize: 12, color: AU.textMuted, marginTop: 4 }}>Public Country-by-Country Reporting \u00B7 FY {client.year}</div>
+            <GoldRule width={60} style={{ margin: "12px auto 0" }} />
+          </div>
+
+          <div style={{ display: "flex", gap: 28, marginBottom: 24, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 10, color: AU.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.1em" }}>Readiness</div>
+              <ScoreRing score={client.readinessScore} size={56} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: AU.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.1em" }}>Jurisdictions</div>
+              <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>{client.jurisdictions}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: AU.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.1em" }}>Open Issues</div>
+              <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "'Outfit', sans-serif", color: AU.red }}>{VALIDATION_ISSUES.filter(i=>i.status==="open").length}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: AU.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.1em" }}>Scope</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: AU.green, marginTop: 10 }}>In Scope</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, fontFamily: "'Outfit', sans-serif" }}>Issue Summary</div>
+            {VALIDATION_ISSUES.slice(0, 3).map(issue => (
+              <div key={issue.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderBottom: `1px solid ${AU.border}` }}>
+                <Badge label={severityConfig[issue.severity].label} color={severityConfig[issue.severity].color} bg={severityConfig[issue.severity].bg} />
+                <span style={{ fontSize: 11, lineHeight: 1.6, color: AU.textSoft }}>{issue.message}</span>
+              </div>
+            ))}
+            <div style={{ fontSize: 11, color: AU.textMuted, marginTop: 8 }}>+ {VALIDATION_ISSUES.length - 3} more (see full report)</div>
+          </div>
+
+          <div style={{ fontSize: 10, color: AU.textDim, textAlign: "center", paddingTop: 14, borderTop: `1px solid ${AU.border}` }}>
+            Generated by CbCR Control \u00B7 AU Consulting \u00B7 {new Date().toLocaleDateString()} \u00B7 Confidential
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════════════
+window.__APP__ = function App() {
+  const [view, setView] = useState("portfolio");
+  const [client, setClient] = useState(null);
+
+  const select = (c) => { setClient(c); setView("client"); };
+
+  const crumbs = [];
+  if (view === "client" && client) {
+    crumbs.push({ label: "Portfolio", onClick: () => setView("portfolio") });
+    crumbs.push({ label: `${client.name} \u00B7 FY ${client.year}` });
+  }
+
+  return (
+    <div style={{ fontFamily: "'Outfit', system-ui, sans-serif", background: AU.bg, color: AU.text, minHeight: "100vh", fontSize: 13, lineHeight: 1.5 }}>
+      <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <NavBar onNavigate={setView} breadcrumbs={crumbs} />
+      <div style={{ paddingBottom: 48 }}>
+        {view === "portfolio" && <PortfolioView onSelectClient={select} />}
+        {view === "client" && client && <ClientDetailView client={client} />}
+      </div>
+    </div>
+  );
+}
+
+const App = window.__APP__;
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>

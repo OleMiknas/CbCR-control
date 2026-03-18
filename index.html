@@ -225,6 +225,132 @@ const DATA_REQUESTS = [
   { id: "r2", title: "Confirm Brazil tax treatment", fields: ["tax_paid", "tax_accrued"], country: "BR", status: "in_progress", dueDate: "2026-04-10" },
 ];
 
+const PORTFOLIO_ALERTS = [
+  { id: "a1", clientId: "c1", clientName: "Nordveld Group", type: "high_severity_issue", severity: "high", message: "2 high-severity validation issues remain open", status: "open", createdAt: "2026-03-17T14:22:00Z" },
+  { id: "a2", clientId: "c2", clientName: "Arcos Logistics", type: "readiness_below_threshold", severity: "high", message: "Readiness score dropped below 50% (currently 41%)", status: "open", createdAt: "2026-03-16T09:15:00Z" },
+  { id: "a3", clientId: "c2", clientName: "Arcos Logistics", type: "overdue_request", severity: "medium", message: "Data request overdue by 3 days — awaiting client response", status: "open", createdAt: "2026-03-15T11:00:00Z" },
+  { id: "a4", clientId: "c5", clientName: "Havenbrook Capital", type: "deadline_approaching", severity: "medium", message: "Filing deadline in 104 days — no data uploaded yet", status: "open", createdAt: "2026-03-18T08:00:00Z" },
+  { id: "a5", clientId: "c1", clientName: "Nordveld Group", type: "document_gap", severity: "medium", message: "Required document missing: tax paid support for Singapore", status: "acknowledged", createdAt: "2026-03-14T16:30:00Z" },
+];
+
+// ─── Document Intelligence Data ─────────────────────────────────
+const DOCUMENTS = [
+  { id: "d1", filename: "nordveld_cbcr_2025_v2.xlsx", type: "cbcr_dataset", subtype: null, classStatus: "auto_classified", confidence: 0.97, uploadedBy: "J. van der Berg", uploadedAt: "2026-03-15", pages: null, size: "245 KB" },
+  { id: "d2", filename: "Nordveld_Entity_List_2025.pdf", type: "entity_list", subtype: null, classStatus: "auto_classified", confidence: 0.91, uploadedBy: "J. van der Berg", uploadedAt: "2026-03-14", pages: 3, size: "128 KB" },
+  { id: "d3", filename: "Group_Structure_Chart_FY25.pdf", type: "group_structure", subtype: null, classStatus: "auto_classified", confidence: 0.88, uploadedBy: "O. Abboud", uploadedAt: "2026-03-13", pages: 2, size: "412 KB" },
+  { id: "d4", filename: "Tax_Paid_Support_EU_2025.pdf", type: "tax_paid_support", subtype: "EU jurisdictions", classStatus: "manual", confidence: 1.0, uploadedBy: "J. van der Berg", uploadedAt: "2026-03-15", pages: 8, size: "1.2 MB" },
+  { id: "d5", filename: "TP_Memo_Singapore_2025.pdf", type: "tax_memo", subtype: "Transfer pricing", classStatus: "auto_classified", confidence: 0.74, uploadedBy: "O. Abboud", uploadedAt: "2026-03-16", pages: 12, size: "890 KB" },
+  { id: "d6", filename: "CbCR_FY2024_Final.xlsx", type: "prior_year_reference", subtype: null, classStatus: "auto_classified", confidence: 0.85, uploadedBy: "J. van der Berg", uploadedAt: "2026-03-12", pages: null, size: "198 KB" },
+  { id: "d7", filename: "Headcount_Breakdown_Q4.xlsx", type: "supporting_schedule", subtype: "Employee data", classStatus: "needs_review", confidence: 0.62, uploadedBy: "J. van der Berg", uploadedAt: "2026-03-16", pages: null, size: "87 KB" },
+];
+
+const REQUIRED_DOCS = [
+  { type: "cbcr_dataset", label: "CbCR Dataset", required: true, status: "satisfied", docId: "d1" },
+  { type: "entity_list", label: "Entity List", required: true, status: "satisfied", docId: "d2" },
+  { type: "group_structure", label: "Group Structure", required: true, status: "satisfied", docId: "d3" },
+  { type: "tax_paid_support", label: "Tax Paid Support", required: true, status: "under_review", docId: "d4", note: "Covers EU only — SG and CN not included" },
+  { type: "prior_year_reference", label: "Prior Year CbCR", required: true, status: "satisfied", docId: "d6" },
+  { type: "tax_memo", label: "Tax Memo / Advisory Note", required: false, status: "uploaded", docId: "d5" },
+  { type: "supporting_schedule", label: "Supporting Schedules", required: false, status: "under_review", docId: "d7" },
+];
+
+const EXTRACTED_FACTS = [
+  { id: "f1", docId: "d2", docName: "Entity List", factType: "entity_count", country: null, value: "15 entities listed", confidence: 0.94, page: 1 },
+  { id: "f2", docId: "d2", docName: "Entity List", factType: "country_reference", country: "SG", value: "Nordveld Asia Pte Ltd", confidence: 0.91, page: 2 },
+  { id: "f3", docId: "d2", docName: "Entity List", factType: "country_reference", country: "IE", value: "Nordveld IP Holdings Ltd + Nordveld EU Services Ltd", confidence: 0.89, page: 2 },
+  { id: "f4", docId: "d3", docName: "Group Structure", factType: "entity_count", country: null, value: "18 entities in org chart", confidence: 0.82, page: 1 },
+  { id: "f5", docId: "d4", docName: "Tax Paid Support", factType: "tax_amount", country: "NL", value: "\u20AC9.5M CIT paid confirmed", confidence: 0.96, page: 3 },
+  { id: "f6", docId: "d4", docName: "Tax Paid Support", factType: "tax_amount", country: "DE", value: "\u20AC6.6M CIT paid confirmed", confidence: 0.95, page: 4 },
+  { id: "f7", docId: "d4", docName: "Tax Paid Support", factType: "country_missing", country: "SG", value: "No tax support found for Singapore", confidence: 0.88, page: null },
+  { id: "f8", docId: "d4", docName: "Tax Paid Support", factType: "country_missing", country: "CN", value: "No tax support found for China", confidence: 0.85, page: null },
+  { id: "f9", docId: "d5", docName: "Tax Memo", factType: "profit_reference", country: "SG", value: "Memo references \u20AC28M profit — matches dataset", confidence: 0.78, page: 5 },
+  { id: "f10", docId: "d3", docName: "Group Structure", factType: "entity_mismatch", country: null, value: "Org chart shows 18 entities vs 15 in entity list — 3 entity gap", confidence: 0.80, page: 1 },
+  { id: "f11", docId: "d7", docName: "Headcount Breakdown", factType: "employee_count", country: "SG", value: "48 FTEs reported vs 45 in dataset", confidence: 0.72, page: null },
+];
+
+const docTypeConfig = {
+  cbcr_dataset: { icon: "📊", label: "CbCR Dataset", color: AU.gold },
+  entity_list: { icon: "🏢", label: "Entity List", color: AU.blue },
+  group_structure: { icon: "🔗", label: "Group Structure", color: AU.purple },
+  tax_paid_support: { icon: "💰", label: "Tax Paid Support", color: AU.green },
+  prior_year_reference: { icon: "📁", label: "Prior Year Reference", color: AU.textSoft },
+  tax_memo: { icon: "📝", label: "Tax Memo", color: AU.amber },
+  supporting_schedule: { icon: "📋", label: "Supporting Schedule", color: AU.textSoft },
+  other: { icon: "📄", label: "Other", color: AU.textMuted },
+};
+
+const classStatusConfig = {
+  auto_classified: { label: "Auto", color: AU.green, bg: AU.greenBg },
+  manual: { label: "Manual", color: AU.blue, bg: AU.blueBg },
+  needs_review: { label: "Needs Review", color: AU.amber, bg: AU.amberBg },
+  unclassified: { label: "Unclassified", color: AU.red, bg: AU.redBg },
+};
+
+const reqDocStatusConfig = {
+  satisfied: { label: "Satisfied", color: AU.green, bg: AU.greenBg },
+  uploaded: { label: "Uploaded", color: AU.blue, bg: AU.blueBg },
+  under_review: { label: "Under Review", color: AU.amber, bg: AU.amberBg },
+  missing: { label: "Missing", color: AU.red, bg: AU.redBg },
+};
+
+const DOCUMENT_ISSUES = [
+  { id: "di1", ruleCode: "RDOC-001", severity: "high", ruleType: "required_document", docId: null, docType: "tax_paid_support", country: "SG", message: "No tax paid support uploaded or identified for Singapore. \u20AC1.4M tax paid reported in dataset.", status: "open", assignedTo: null },
+  { id: "di2", ruleCode: "RDOC-002", severity: "high", ruleType: "required_document", docId: null, docType: "tax_paid_support", country: "CN", message: "No tax paid support uploaded or identified for China. \u20AC3.5M tax paid reported in dataset.", status: "open", assignedTo: null },
+  { id: "di3", ruleCode: "XDOC-001", severity: "high", ruleType: "cross_document_consistency", docId: "d2", docType: "entity_list", country: null, message: "Entity list contains 15 entities but group structure chart references 18. 3-entity gap requires reconciliation.", status: "open", assignedTo: "J. van der Berg" },
+  { id: "di4", ruleCode: "XDOC-002", severity: "medium", ruleType: "cross_document_consistency", docId: "d7", docType: "supporting_schedule", country: "SG", message: "Headcount breakdown shows 48 FTEs for Singapore vs 45 in CbCR dataset. Confirm which is authoritative.", status: "reviewed", assignedTo: "O. Abboud" },
+  { id: "di5", ruleCode: "DCOV-001", severity: "medium", ruleType: "document_coverage", docId: "d4", docType: "tax_paid_support", country: null, message: "Tax paid support document covers EU jurisdictions only. Non-EU jurisdictions (SG, CN, US, BR) have no supporting tax documentation.", status: "open", assignedTo: null },
+  { id: "di6", ruleCode: "MSUP-001", severity: "medium", ruleType: "missing_support", docId: null, docType: null, country: "BR", message: "Brazil reports negative profit and zero tax paid. No memo or supporting note explains the tax treatment.", status: "open", assignedTo: null },
+  { id: "di7", ruleCode: "DQUAL-001", severity: "low", ruleType: "document_quality", docId: "d5", docType: "tax_memo", country: "SG", message: "Transfer pricing memo classification confidence is 74%. Manual review recommended to confirm document type.", status: "reviewed", assignedTo: "O. Abboud" },
+];
+
+const docIssueRuleTypeConfig = {
+  required_document: { label: "Required Doc", color: AU.red, bg: AU.redBg },
+  cross_document_consistency: { label: "Cross-Doc", color: AU.purple, bg: AU.purpleBg },
+  document_coverage: { label: "Coverage Gap", color: AU.amber, bg: AU.amberBg },
+  missing_support: { label: "Missing Support", color: AU.amber, bg: AU.amberBg },
+  document_quality: { label: "Doc Quality", color: AU.blue, bg: AU.blueBg },
+};
+
+// ─── Client Portal Data ─────────────────────────────────────────
+const CLIENT_PORTAL_REQUESTS = [
+  {
+    id: "cr1", title: "Confirm entity breakdown for Singapore",
+    description: "Our validation identified a single entity in Singapore (Nordveld Asia Pte Ltd) but the group structure chart shows additional related entities. Please confirm the complete entity list for Singapore.",
+    status: "open", dueDate: "2026-04-15", createdAt: "2026-03-15",
+    items: [
+      { id: "ci1", field: "entity_name", country: "SG", label: "Full list of SG entities in scope", status: "open", response: null },
+      { id: "ci2", field: "entity_type", country: "SG", label: "Entity type for each (operating, holding, IP, etc.)", status: "open", response: null },
+    ],
+  },
+  {
+    id: "cr2", title: "Upload tax paid support for Singapore & China",
+    description: "The current tax support documentation covers EU jurisdictions only. Please provide supporting evidence for tax paid in Singapore (\u20AC1.4M) and China (\u20AC3.5M).",
+    status: "in_progress", dueDate: "2026-04-10", createdAt: "2026-03-14",
+    items: [
+      { id: "ci3", field: "tax_paid", country: "SG", label: "Tax paid support document — Singapore", status: "in_progress", response: null, docType: "file_upload" },
+      { id: "ci4", field: "tax_paid", country: "CN", label: "Tax paid support document — China", status: "open", response: null, docType: "file_upload" },
+    ],
+  },
+  {
+    id: "cr3", title: "Confirm Brazil tax treatment",
+    description: "Brazil shows negative profit (\u20AC-3M) and zero tax paid. Please confirm whether withholding taxes or minimum taxes apply, and provide a brief note on the tax position.",
+    status: "in_progress", dueDate: "2026-04-10", createdAt: "2026-03-13",
+    items: [
+      { id: "ci5", field: "tax_paid", country: "BR", label: "Confirm zero tax is correct", status: "fulfilled", response: "Confirmed — Brazil entity had no taxable income in FY2025. Loss carried forward." },
+      { id: "ci6", field: "tax_accrued", country: "BR", label: "Any withholding or minimum taxes?", status: "fulfilled", response: "No withholding taxes. No minimum tax applies under current regime." },
+    ],
+  },
+  {
+    id: "cr4", title: "Provide updated employee headcount by jurisdiction",
+    description: "Minor discrepancy found between headcount breakdown and CbCR dataset for Singapore (48 vs 45 FTEs). Please provide the authoritative headcount figure per jurisdiction.",
+    status: "open", dueDate: "2026-04-20", createdAt: "2026-03-17",
+    items: [
+      { id: "ci7", field: "employees", country: "SG", label: "Confirmed FTE count for Singapore", status: "open", response: null },
+      { id: "ci8", field: "employees", country: null, label: "Updated headcount schedule (all jurisdictions)", status: "open", response: null, docType: "file_upload" },
+    ],
+  },
+];
+
 // ─── Helpers ────────────────────────────────────────────────────
 const fmt = (n) => { if (n == null) return "\u2014"; if (Math.abs(n) >= 1e6) return `\u20AC${(n/1e6).toFixed(1)}M`; if (Math.abs(n) >= 1e3) return `\u20AC${(n/1e3).toFixed(0)}K`; return `\u20AC${n}`; };
 const fmtNum = (n) => n == null ? "\u2014" : n.toLocaleString();
@@ -242,6 +368,107 @@ const severityConfig = {
   medium: { color: AU.amber, bg: AU.amberBg, label: "Medium" },
   low: { color: AU.blue, bg: AU.blueBg, label: "Low" },
 };
+
+const alertTypeConfig = {
+  high_severity_issue: { icon: "⚠", label: "High Severity Issue" },
+  readiness_below_threshold: { icon: "📉", label: "Low Readiness" },
+  overdue_request: { icon: "⏰", label: "Overdue Request" },
+  deadline_approaching: { icon: "📅", label: "Deadline Approaching" },
+  document_gap: { icon: "📄", label: "Document Gap" },
+  validation_failed: { icon: "✖", label: "Validation Failed" },
+  required_doc_missing: { icon: "📋", label: "Missing Document" },
+};
+
+const alertStatusConfig = {
+  open: { label: "Open", color: AU.red, bg: AU.redBg },
+  acknowledged: { label: "Acknowledged", color: AU.amber, bg: AU.amberBg },
+  resolved: { label: "Resolved", color: AU.green, bg: AU.greenBg },
+};
+
+// ─── Portfolio Alerts Banner ────────────────────────────────────
+function AlertsBanner({ alerts, onAlertAction }) {
+  const [expanded, setExpanded] = useState(false);
+  const activeAlerts = alerts.filter(a => a.status !== "resolved");
+  const highCount = activeAlerts.filter(a => a.severity === "high").length;
+  const medCount = activeAlerts.filter(a => a.severity === "medium").length;
+
+  if (activeAlerts.length === 0) return null;
+
+  return (
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      <div style={{
+        background: highCount > 0 ? "rgba(248,113,113,0.06)" : AU.amberBg,
+        border: `1px solid ${highCount > 0 ? "rgba(248,113,113,0.2)" : "rgba(251,191,36,0.2)"}`,
+        borderRadius: 6, marginBottom: 20, overflow: "hidden",
+        transition: "all 0.2s",
+      }}>
+        <div
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between",
+            cursor: "pointer", transition: "background 0.15s",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
+              background: highCount > 0 ? AU.redBg : AU.amberBg,
+              border: `1px solid ${highCount > 0 ? "rgba(248,113,113,0.3)" : "rgba(251,191,36,0.3)"}`,
+              fontSize: 12,
+            }}>
+              {highCount > 0 ? "⚠" : "⏰"}
+            </div>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Outfit', sans-serif", color: AU.text }}>
+                {activeAlerts.length} Active Alert{activeAlerts.length !== 1 ? "s" : ""}
+              </span>
+              <span style={{ fontSize: 11, color: AU.textMuted, marginLeft: 10 }}>
+                {highCount > 0 && <span style={{ color: AU.red, fontWeight: 600 }}>{highCount} high</span>}
+                {highCount > 0 && medCount > 0 && " · "}
+                {medCount > 0 && <span style={{ color: AU.amber, fontWeight: 600 }}>{medCount} medium</span>}
+              </span>
+            </div>
+          </div>
+          <span style={{ fontSize: 10, color: AU.textMuted, fontWeight: 600, fontFamily: "'Outfit', sans-serif", letterSpacing: "0.08em" }}>
+            {expanded ? "COLLAPSE ▲" : "EXPAND ▼"}
+          </span>
+        </div>
+
+        {expanded && (
+          <div style={{ borderTop: `1px solid ${AU.border}` }}>
+            {activeAlerts.map(alert => {
+              const typeConf = alertTypeConfig[alert.type] || { icon: "•", label: alert.type };
+              const sevConf = severityConfig[alert.severity];
+              const statConf = alertStatusConfig[alert.status];
+              return (
+                <div key={alert.id} style={{
+                  padding: "11px 18px", display: "flex", alignItems: "center", gap: 12,
+                  borderBottom: `1px solid ${AU.border}`,
+                }}>
+                  <span style={{ fontSize: 14, width: 24, textAlign: "center", flexShrink: 0 }}>{typeConf.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: AU.gold, fontFamily: "'Outfit', sans-serif" }}>{alert.clientName}</span>
+                      <Badge label={sevConf.label} color={sevConf.color} bg={sevConf.bg} />
+                      <Badge label={statConf.label} color={statConf.color} bg={statConf.bg} />
+                    </div>
+                    <div style={{ fontSize: 12, color: AU.textSoft, lineHeight: 1.5 }}>{alert.message}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    {alert.status === "open" && (
+                      <Button size="sm" variant="secondary" onClick={e => { e.stopPropagation(); onAlertAction(alert.id, "acknowledged"); }}>Acknowledge</Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); onAlertAction(alert.id, "resolved"); }}>Resolve</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════
 // DESIGN SYSTEM COMPONENTS
@@ -346,17 +573,17 @@ function StatCard({ label, value, sub }) {
 }
 
 // ─── Navigation ─────────────────────────────────────────────────
-function NavBar({ onNavigate, breadcrumbs }) {
+function NavBar({ onNavigate, breadcrumbs, isPortal }) {
   return (
-    <div style={{ background: AU.navyDark, borderBottom: `1px solid ${AU.border}`, position: "sticky", top: 0, zIndex: 100 }}>
+    <div style={{ background: isPortal ? "#0C1A2E" : AU.navyDark, borderBottom: `1px solid ${AU.border}`, position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", height: 54, gap: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => onNavigate("portfolio")}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => onNavigate(isPortal ? "portal" : "portfolio")}>
           <CompassMark size={26} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em", fontFamily: "'Outfit', sans-serif", color: AU.text }}>
               CbCR <span style={{ color: AU.gold }}>CONTROL</span>
             </div>
-            <div style={{ fontSize: 8, letterSpacing: "0.2em", color: AU.textMuted, textTransform: "uppercase", marginTop: -1 }}>by AU Consulting</div>
+            <div style={{ fontSize: 8, letterSpacing: "0.2em", color: AU.textMuted, textTransform: "uppercase", marginTop: -1 }}>{isPortal ? "Client Portal" : "by AU Consulting"}</div>
           </div>
         </div>
 
@@ -371,16 +598,31 @@ function NavBar({ onNavigate, breadcrumbs }) {
           </div>
         )}
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => onNavigate(isPortal ? "portfolio" : "portal")}
+            style={{
+              padding: "4px 12px", borderRadius: 3, fontSize: 10, fontWeight: 700, cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif", letterSpacing: "0.08em", transition: "all 0.15s",
+              background: isPortal ? AU.blueBg : "transparent",
+              color: isPortal ? AU.blue : AU.textMuted,
+              border: `1px solid ${isPortal ? "rgba(96,165,250,0.3)" : AU.border}`,
+            }}
+          >
+            {isPortal ? "← ADVISOR VIEW" : "CLIENT PORTAL →"}
+          </button>
           <span style={{ fontSize: 10, color: AU.gold, padding: "3px 10px", background: AU.goldSubtle, borderRadius: 3, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "'Outfit', sans-serif", border: `1px solid ${AU.borderGold}` }}>
             PROTOTYPE
           </span>
           <div style={{
-            width: 30, height: 30, borderRadius: "50%", background: AU.goldDim,
+            width: 30, height: 30, borderRadius: "50%",
+            background: isPortal ? AU.blueBg : AU.goldDim,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 11, fontWeight: 700, color: AU.gold, fontFamily: "'Outfit', sans-serif",
-            border: `1px solid ${AU.borderGold}`,
-          }}>OA</div>
+            fontSize: 11, fontWeight: 700,
+            color: isPortal ? AU.blue : AU.gold,
+            fontFamily: "'Outfit', sans-serif",
+            border: `1px solid ${isPortal ? "rgba(96,165,250,0.3)" : AU.borderGold}`,
+          }}>{isPortal ? "NG" : "OA"}</div>
         </div>
       </div>
       <GoldRule height={1} style={{ opacity: 0.3 }} />
@@ -394,77 +636,107 @@ function NavBar({ onNavigate, breadcrumbs }) {
 
 function PortfolioView({ onSelectClient }) {
   const [filter, setFilter] = useState("all");
+  const [alerts, setAlerts] = useState(PORTFOLIO_ALERTS);
   const filtered = filter === "all" ? CLIENTS : CLIENTS.filter(c => c.status === filter);
   const totalIssues = CLIENTS.reduce((s, c) => s + c.issueCount, 0);
   const avgScore = Math.round(CLIENTS.filter(c => c.readinessScore > 0).reduce((s, c) => s + c.readinessScore, 0) / CLIENTS.filter(c => c.readinessScore > 0).length);
+  const activeAlertCount = alerts.filter(a => a.status !== "resolved").length;
+
+  const handleAlertAction = (alertId, newStatus) => {
+    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: newStatus } : a));
+  };
+
+  const getClientAlerts = (clientId) => alerts.filter(a => a.clientId === clientId && a.status !== "resolved");
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
-      <div style={{ padding: "36px 0 8px", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>Portfolio Dashboard</div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.01em", fontFamily: "'Outfit', sans-serif" }}>FY 2025 Readiness Overview</h1>
+    <div>
+      <AlertsBanner alerts={alerts} onAlertAction={handleAlertAction} />
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ padding: "36px 0 8px", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>Portfolio Dashboard</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.01em", fontFamily: "'Outfit', sans-serif" }}>FY 2025 Readiness Overview</h1>
+          </div>
+          <Button variant="secondary" size="sm">+ Add Client</Button>
         </div>
-        <Button variant="secondary" size="sm">+ Add Client</Button>
-      </div>
-      <GoldRule width={48} style={{ marginBottom: 28 }} />
+        <GoldRule width={48} style={{ marginBottom: 28 }} />
 
-      <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
-        <Card style={{ flex: 1, minWidth: 150 }}><StatCard label="Active Clients" value={CLIENTS.length} sub="across 4 HQ countries" /></Card>
-        <Card gold style={{ flex: 1, minWidth: 150 }}><StatCard label="Open Issues" value={totalIssues} sub={`${CLIENTS.filter(c=>c.issueCount>0).length} clients affected`} /></Card>
-        <Card style={{ flex: 1, minWidth: 150 }}><StatCard label="Avg Readiness" value={`${avgScore}%`} sub="excl. not started" /></Card>
-        <Card style={{ flex: 1, minWidth: 150 }}><StatCard label="Next Deadline" value="30 Jun" sub="2026 filing period" /></Card>
-      </div>
+        <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
+          <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Active Clients" value={CLIENTS.length} sub="across 4 HQ countries" /></Card>
+          <Card gold style={{ flex: 1, minWidth: 130 }}><StatCard label="Open Issues" value={totalIssues} sub={`${CLIENTS.filter(c=>c.issueCount>0).length} clients affected`} /></Card>
+          <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Avg Readiness" value={`${avgScore}%`} sub="excl. not started" /></Card>
+          <Card style={{ flex: 1, minWidth: 130 }}>
+            <StatCard label="Active Alerts" value={activeAlertCount} sub={`${alerts.filter(a=>a.severity==="high"&&a.status!=="resolved").length} high severity`} />
+          </Card>
+        </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
-        {[{ key: "all", label: "All" }, ...Object.entries(statusConfig).map(([k, v]) => ({ key: k, label: v.label }))].map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)} style={{
-            padding: "5px 14px", borderRadius: 3, fontSize: 11, fontWeight: 600, cursor: "pointer",
-            fontFamily: "'Outfit', sans-serif", border: "none", transition: "all 0.15s", letterSpacing: "0.02em",
-            background: filter === f.key ? AU.goldDim : "transparent",
-            color: filter === f.key ? AU.gold : AU.textMuted,
-          }}>{f.label}</button>
-        ))}
-      </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+          {[{ key: "all", label: "All" }, ...Object.entries(statusConfig).map(([k, v]) => ({ key: k, label: v.label }))].map(f => (
+            <button key={f.key} onClick={() => setFilter(f.key)} style={{
+              padding: "5px 14px", borderRadius: 3, fontSize: 11, fontWeight: 600, cursor: "pointer",
+              fontFamily: "'Outfit', sans-serif", border: "none", transition: "all 0.15s", letterSpacing: "0.02em",
+              background: filter === f.key ? AU.goldDim : "transparent",
+              color: filter === f.key ? AU.gold : AU.textMuted,
+            }}>{f.label}</button>
+          ))}
+        </div>
 
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
-              {["Client", "HQ", "Status", "Readiness", "Issues", "Jurisdictions", "Deadline"].map(h => (
-                <th key={h} style={{ textAlign: "left", padding: "11px 16px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(client => {
-              const st = statusConfig[client.status];
-              return (
-                <tr key={client.id} onClick={() => onSelectClient(client)} style={{ borderBottom: `1px solid ${AU.border}`, cursor: "pointer", transition: "background 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = AU.surfaceRaised; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
-                  <td style={{ padding: "14px 16px" }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>{client.name}</div>
-                    <div style={{ fontSize: 11, color: AU.textMuted }}>{client.industry}</div>
-                  </td>
-                  <td style={{ padding: "14px 16px" }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: AU.textSoft, fontFamily: "'Outfit', sans-serif" }}>{client.hq}</span>
-                  </td>
-                  <td style={{ padding: "14px 16px" }}><Badge label={st.label} color={st.color} bg={st.bg} /></td>
-                  <td style={{ padding: "14px 16px" }}><ScoreRing score={client.readinessScore} size={36} /></td>
-                  <td style={{ padding: "14px 16px" }}>
-                    {client.issueCount > 0
-                      ? <span style={{ color: AU.red, fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: 13 }}>{client.issueCount}</span>
-                      : <span style={{ color: AU.textDim }}>0</span>}
-                  </td>
-                  <td style={{ padding: "14px 16px", color: AU.textMuted, fontSize: 13 }}>{client.jurisdictions || "\u2014"}</td>
-                  <td style={{ padding: "14px 16px", fontSize: 12, color: AU.textMuted }}>{client.deadline}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+                {["Client", "HQ", "Status", "Readiness", "Issues", "Alerts", "Jurisdictions", "Deadline"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "11px 16px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(client => {
+                const st = statusConfig[client.status];
+                const clientAlerts = getClientAlerts(client.id);
+                const hasHighAlert = clientAlerts.some(a => a.severity === "high");
+                return (
+                  <tr key={client.id} onClick={() => onSelectClient(client)} style={{ borderBottom: `1px solid ${AU.border}`, cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = AU.surfaceRaised; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                    <td style={{ padding: "14px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {hasHighAlert && <div style={{ width: 6, height: 6, borderRadius: 3, background: AU.red, flexShrink: 0, boxShadow: "0 0 6px rgba(248,113,113,0.5)" }} />}
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>{client.name}</div>
+                          <div style={{ fontSize: 11, color: AU.textMuted }}>{client.industry}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: "14px 16px" }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: AU.textSoft, fontFamily: "'Outfit', sans-serif" }}>{client.hq}</span>
+                    </td>
+                    <td style={{ padding: "14px 16px" }}><Badge label={st.label} color={st.color} bg={st.bg} /></td>
+                    <td style={{ padding: "14px 16px" }}><ScoreRing score={client.readinessScore} size={36} /></td>
+                    <td style={{ padding: "14px 16px" }}>
+                      {client.issueCount > 0
+                        ? <span style={{ color: AU.red, fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: 13 }}>{client.issueCount}</span>
+                        : <span style={{ color: AU.textDim }}>0</span>}
+                    </td>
+                    <td style={{ padding: "14px 16px" }}>
+                      {clientAlerts.length > 0 ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ color: hasHighAlert ? AU.red : AU.amber, fontWeight: 700, fontFamily: "'Outfit', sans-serif", fontSize: 13 }}>{clientAlerts.length}</span>
+                          <span style={{ fontSize: 10, color: AU.textDim }}>
+                            {clientAlerts.map(a => (alertTypeConfig[a.type]?.icon || "•")).join("")}
+                          </span>
+                        </div>
+                      ) : <span style={{ color: AU.textDim }}>—</span>}
+                    </td>
+                    <td style={{ padding: "14px 16px", color: AU.textMuted, fontSize: 13 }}>{client.jurisdictions || "\u2014"}</td>
+                    <td style={{ padding: "14px 16px", fontSize: 12, color: AU.textMuted }}>{client.deadline}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -478,7 +750,9 @@ function ClientDetailView({ client }) {
     { key: "overview", label: "Overview" },
     { key: "data", label: "Jurisdiction Data" },
     { key: "upload", label: "Upload & Mapping" },
+    { key: "documents", label: `Documents${isDemo ? ` (${DOCUMENTS.length})` : ""}` },
     { key: "issues", label: `Issues${isDemo ? ` (${VALIDATION_ISSUES.length})` : ""}` },
+    { key: "doc_issues", label: `Doc Issues${isDemo ? ` (${DOCUMENT_ISSUES.length})` : ""}` },
     { key: "requests", label: "Data Requests" },
     { key: "report", label: "Report" },
   ];
@@ -515,7 +789,9 @@ function ClientDetailView({ client }) {
       {activeTab === "overview" && <OverviewTab client={client} isDemo={isDemo} onTab={setActiveTab} />}
       {activeTab === "data" && isDemo && <DataTab />}
       {activeTab === "upload" && isDemo && <UploadTab />}
+      {activeTab === "documents" && isDemo && <DocumentsTab />}
       {activeTab === "issues" && isDemo && <IssuesTab />}
+      {activeTab === "doc_issues" && isDemo && <DocumentIssuesTab />}
       {activeTab === "requests" && isDemo && <RequestsTab />}
       {activeTab === "report" && isDemo && <ReportTab client={client} />}
       {!isDemo && activeTab !== "overview" && (
@@ -535,7 +811,7 @@ function OverviewTab({ client, isDemo, onTab }) {
         <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Headquarters" value={client.hq} sub={client.industry} /></Card>
         <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Jurisdictions" value={client.jurisdictions} sub={isDemo ? "8 countries filed" : ""} /></Card>
         <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Open Issues" value={isDemo ? VALIDATION_ISSUES.filter(i=>i.status==="open").length : client.issueCount} sub={isDemo ? `${VALIDATION_ISSUES.filter(i=>i.severity==="high").length} high severity` : ""} /></Card>
-        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Scope" value="In scope" sub="\u20AC750M+ threshold" /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Doc Completeness" value={isDemo ? `${Math.round((REQUIRED_DOCS.filter(d=>d.required&&d.status==="satisfied").length / REQUIRED_DOCS.filter(d=>d.required).length)*100)}%` : "—"} sub={isDemo ? `${REQUIRED_DOCS.filter(d=>d.required&&d.status==="satisfied").length}/${REQUIRED_DOCS.filter(d=>d.required).length} required docs` : ""} /></Card>
       </div>
 
       {isDemo && (
@@ -590,6 +866,7 @@ function OverviewTab({ client, isDemo, onTab }) {
           </Card>
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <Button onClick={() => onTab("issues")}>Review Issues</Button>
+            <Button variant="secondary" onClick={() => onTab("doc_issues")}>Doc Issues ({DOCUMENT_ISSUES.filter(i=>i.status==="open").length})</Button>
             <Button variant="secondary" onClick={() => onTab("report")}>Generate Report</Button>
           </div>
         </>
@@ -899,6 +1176,566 @@ function ReportTab({ client }) {
   );
 }
 
+// ─── Documents Tab (Document Intelligence) ──────────────────────
+function DocumentsTab() {
+  const [subView, setSubView] = useState("documents");
+  const [docs, setDocs] = useState(DOCUMENTS);
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const satisfiedCount = REQUIRED_DOCS.filter(d => d.status === "satisfied").length;
+  const requiredCount = REQUIRED_DOCS.filter(d => d.required).length;
+  const satisfiedRequired = REQUIRED_DOCS.filter(d => d.required && d.status === "satisfied").length;
+  const completeness = Math.round((satisfiedRequired / requiredCount) * 100);
+
+  const subTabs = [
+    { key: "documents", label: "All Documents" },
+    { key: "checklist", label: "Required Checklist" },
+    { key: "extraction", label: "Extracted Facts" },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Documents" value={docs.length} sub={`${docs.filter(d=>d.classStatus==="auto_classified").length} auto-classified`} /></Card>
+        <Card gold style={{ flex: 1, minWidth: 130 }}><StatCard label="Doc Completeness" value={`${completeness}%`} sub={`${satisfiedRequired}/${requiredCount} required docs`} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Extracted Facts" value={EXTRACTED_FACTS.length} sub={`across ${docs.length} documents`} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Needs Review" value={docs.filter(d=>d.classStatus==="needs_review").length} sub="classification uncertain" /></Card>
+      </div>
+
+      <div style={{ display: "flex", gap: 4, marginBottom: 20 }}>
+        {subTabs.map(st => (
+          <button key={st.key} onClick={() => setSubView(st.key)} style={{
+            padding: "6px 16px", borderRadius: 3, fontSize: 11, fontWeight: 600, cursor: "pointer",
+            fontFamily: "'Outfit', sans-serif", border: "none", transition: "all 0.15s",
+            background: subView === st.key ? AU.goldDim : "transparent",
+            color: subView === st.key ? AU.gold : AU.textMuted,
+          }}>{st.label}</button>
+        ))}
+      </div>
+
+      {subView === "documents" && (
+        <div>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+                  {["Document", "Type", "Classification", "Confidence", "Uploaded By", "Date", "Size"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {docs.map(doc => {
+                  const dt = docTypeConfig[doc.type] || docTypeConfig.other;
+                  const cs = classStatusConfig[doc.classStatus] || classStatusConfig.unclassified;
+                  const sel = selectedDoc === doc.id;
+                  return (
+                    <React.Fragment key={doc.id}>
+                      <tr
+                        onClick={() => setSelectedDoc(sel ? null : doc.id)}
+                        style={{ borderBottom: `1px solid ${AU.border}`, cursor: "pointer", transition: "background 0.15s", background: sel ? AU.surfaceRaised : "transparent" }}
+                        onMouseEnter={e => { if (!sel) e.currentTarget.style.background = AU.surfaceRaised; }}
+                        onMouseLeave={e => { if (!sel) e.currentTarget.style.background = "transparent"; }}
+                      >
+                        <td style={{ padding: "12px 14px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 16 }}>{dt.icon}</span>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: 12, fontFamily: "'Outfit', sans-serif" }}>{doc.filename}</div>
+                              {doc.subtype && <div style={{ fontSize: 10, color: AU.textMuted }}>{doc.subtype}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <span style={{ fontSize: 11, color: dt.color, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{dt.label}</span>
+                        </td>
+                        <td style={{ padding: "12px 14px" }}><Badge label={cs.label} color={cs.color} bg={cs.bg} /></td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 40, height: 3, background: AU.border, borderRadius: 2, overflow: "hidden" }}>
+                              <div style={{ width: `${doc.confidence * 100}%`, height: "100%", borderRadius: 2, background: doc.confidence > 0.85 ? AU.green : doc.confidence > 0.7 ? AU.amber : AU.red }} />
+                            </div>
+                            <span style={{ fontSize: 11, color: AU.textMuted, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>{(doc.confidence * 100).toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "12px 14px", fontSize: 11, color: AU.textMuted }}>{doc.uploadedBy}</td>
+                        <td style={{ padding: "12px 14px", fontSize: 11, color: AU.textMuted }}>{doc.uploadedAt}</td>
+                        <td style={{ padding: "12px 14px", fontSize: 11, color: AU.textMuted }}>{doc.size}</td>
+                      </tr>
+                      {sel && (
+                        <tr>
+                          <td colSpan={7} style={{ padding: "0 14px 14px", background: AU.surfaceRaised, borderBottom: `1px solid ${AU.border}` }}>
+                            <div style={{ padding: "12px 0", display: "flex", gap: 8, alignItems: "center" }}>
+                              <span style={{ fontSize: 10, color: AU.textMuted, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.1em" }}>Reclassify:</span>
+                              <select
+                                value={doc.type}
+                                onChange={e => setDocs(prev => prev.map(d => d.id === doc.id ? { ...d, type: e.target.value, classStatus: "manual", confidence: 1.0 } : d))}
+                                style={{ background: AU.surface, border: `1px solid ${AU.border}`, borderRadius: 3, padding: "5px 10px", color: AU.text, fontSize: 11, fontFamily: "'Outfit', sans-serif" }}
+                              >
+                                {Object.entries(docTypeConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                              </select>
+                              <Button size="sm" variant="secondary">View Document</Button>
+                              <Button size="sm" variant="ghost">Extract Facts</Button>
+                            </div>
+                            {EXTRACTED_FACTS.filter(f => f.docId === doc.id).length > 0 && (
+                              <div style={{ marginTop: 4 }}>
+                                <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 8 }}>Extracted from this document</div>
+                                {EXTRACTED_FACTS.filter(f => f.docId === doc.id).map(fact => (
+                                  <div key={fact.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "5px 0", borderBottom: `1px solid ${AU.border}` }}>
+                                    {fact.country && <span style={{ fontSize: 10, color: AU.gold, fontWeight: 700, minWidth: 20 }}>{fact.country}</span>}
+                                    {!fact.country && <span style={{ fontSize: 10, color: AU.textDim, minWidth: 20 }}>—</span>}
+                                    <span style={{ fontSize: 11, color: AU.textSoft, flex: 1 }}>{fact.value}</span>
+                                    <span style={{ fontSize: 10, color: AU.textDim }}>{(fact.confidence * 100).toFixed(0)}%</span>
+                                    {fact.page && <span style={{ fontSize: 10, color: AU.textDim }}>p.{fact.page}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
+
+      {subView === "checklist" && (
+        <div>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Required Document Checklist</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {REQUIRED_DOCS.map((rd, i) => {
+              const dt = docTypeConfig[rd.type] || docTypeConfig.other;
+              const rs = reqDocStatusConfig[rd.status];
+              const linkedDoc = DOCUMENTS.find(d => d.id === rd.docId);
+              return (
+                <Card key={i} gold={rd.status === "missing"} style={{ padding: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: rd.status === "satisfied" ? AU.greenBg : rd.status === "missing" ? AU.redBg : AU.amberBg,
+                      border: `1px solid ${rd.status === "satisfied" ? "rgba(52,211,153,0.3)" : rd.status === "missing" ? "rgba(248,113,113,0.3)" : "rgba(251,191,36,0.3)"}`,
+                      fontSize: 12, flexShrink: 0,
+                    }}>
+                      {rd.status === "satisfied" ? "✓" : rd.status === "missing" ? "✗" : "•"}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 14 }}>{dt.icon}</span>
+                        <span style={{ fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>{rd.label}</span>
+                        {rd.required && <span style={{ fontSize: 9, color: AU.red, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Required</span>}
+                        {!rd.required && <span style={{ fontSize: 9, color: AU.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>Optional</span>}
+                      </div>
+                      {linkedDoc && <div style={{ fontSize: 11, color: AU.textMuted, marginTop: 2 }}>{linkedDoc.filename}</div>}
+                      {rd.note && <div style={{ fontSize: 11, color: AU.amber, marginTop: 3 }}>⚠ {rd.note}</div>}
+                    </div>
+                    <Badge label={rs.label} color={rs.color} bg={rs.bg} />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 16, padding: 16, background: AU.surface, border: `1px solid ${AU.border}`, borderRadius: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <ScoreRing score={completeness} size={48} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>Document Completeness: {completeness}%</div>
+                <div style={{ fontSize: 11, color: AU.textMuted }}>{satisfiedRequired} of {requiredCount} required documents satisfied. {REQUIRED_DOCS.filter(d=>d.note).length > 0 && `${REQUIRED_DOCS.filter(d=>d.note).length} with coverage notes.`}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {subView === "extraction" && (
+        <div>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Extracted Facts & Cross-Document Intelligence</div>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+                  {["Source", "Type", "Country", "Finding", "Confidence", "Page"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {EXTRACTED_FACTS.map(fact => {
+                  const isWarning = fact.factType === "country_missing" || fact.factType === "entity_mismatch" || fact.factType === "employee_count";
+                  return (
+                    <tr key={fact.id} style={{ borderBottom: `1px solid ${AU.border}` }}>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: AU.textSoft }}>{fact.docName}</span>
+                      </td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={{
+                          fontSize: 10, padding: "2px 8px", borderRadius: 2,
+                          background: isWarning ? AU.redBg : AU.surfaceRaised,
+                          color: isWarning ? AU.red : AU.textMuted,
+                          fontWeight: 600, fontFamily: "'Outfit', sans-serif",
+                        }}>
+                          {fact.factType.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {fact.country ? <span style={{ fontSize: 11, color: AU.gold, fontWeight: 700 }}>{fact.country}</span> : <span style={{ color: AU.textDim }}>—</span>}
+                      </td>
+                      <td style={{ padding: "10px 14px", fontSize: 12, color: isWarning ? AU.red : AU.textSoft, lineHeight: 1.5 }}>{fact.value}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 32, height: 3, background: AU.border, borderRadius: 2, overflow: "hidden" }}>
+                            <div style={{ width: `${fact.confidence * 100}%`, height: "100%", borderRadius: 2, background: fact.confidence > 0.85 ? AU.green : fact.confidence > 0.7 ? AU.amber : AU.red }} />
+                          </div>
+                          <span style={{ fontSize: 10, color: AU.textMuted }}>{(fact.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 14px", fontSize: 11, color: AU.textMuted }}>{fact.page ? `p.${fact.page}` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+          <Card gold style={{ marginTop: 16, padding: 16 }}>
+            <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 8, fontFamily: "'Outfit', sans-serif" }}>AI-Assisted Summary · Draft</div>
+            <div style={{ fontSize: 12, color: AU.textSoft, lineHeight: 1.8 }}>
+              Three documentation gaps were identified: no tax support was found for Singapore or China, the entity list contains 15 entities while the group structure chart references 18, and the headcount breakdown shows a minor discrepancy for Singapore (48 vs 45 FTEs). The transfer pricing memo for Singapore aligns with the dataset profit figure. EU tax paid support is confirmed for NL and DE.
+            </div>
+            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+              <Badge label="Draft" color={AU.amber} bg={AU.amberBg} />
+              <span style={{ fontSize: 10, color: AU.textDim, lineHeight: 2 }}>Generated for advisor review — not a legal conclusion</span>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Document Issues Tab ────────────────────────────────────────
+function DocumentIssuesTab() {
+  const [issues, setIssues] = useState(DOCUMENT_ISSUES);
+  const [selectedId, setSelectedId] = useState(null);
+  const [filterType, setFilterType] = useState("all");
+  const [commentText, setCommentText] = useState("");
+
+  const toggle = (id) => setIssues(p => p.map(i => i.id === id ? { ...i, status: i.status === "open" ? "reviewed" : i.status === "reviewed" ? "resolved" : "open" } : i));
+  const ignore = (id, reason) => setIssues(p => p.map(i => i.id === id ? { ...i, status: "ignored", ignoreReason: reason } : i));
+
+  const filteredIssues = filterType === "all" ? issues : issues.filter(i => i.ruleType === filterType);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 20, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="Total" value={issues.length} /></Card>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="High" value={issues.filter(i => i.severity === "high").length} /></Card>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="Open" value={issues.filter(i => i.status === "open").length} /></Card>
+        <Card style={{ flex: 1, minWidth: 110 }}><StatCard label="Resolved" value={issues.filter(i => i.status === "resolved").length} /></Card>
+      </div>
+
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, flexWrap: "wrap" }}>
+        {[{ key: "all", label: "All Types" }, ...Object.entries(docIssueRuleTypeConfig).map(([k, v]) => ({ key: k, label: v.label }))].map(f => (
+          <button key={f.key} onClick={() => setFilterType(f.key)} style={{
+            padding: "5px 14px", borderRadius: 3, fontSize: 11, fontWeight: 600, cursor: "pointer",
+            fontFamily: "'Outfit', sans-serif", border: "none", transition: "all 0.15s",
+            background: filterType === f.key ? AU.goldDim : "transparent",
+            color: filterType === f.key ? AU.gold : AU.textMuted,
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {filteredIssues.map(issue => {
+          const sev = severityConfig[issue.severity];
+          const rt = docIssueRuleTypeConfig[issue.ruleType] || { label: issue.ruleType, color: AU.textMuted, bg: AU.surfaceRaised };
+          const sel = selectedId === issue.id;
+          const linkedDoc = issue.docId ? DOCUMENTS.find(d => d.id === issue.docId) : null;
+          const dt = issue.docType ? (docTypeConfig[issue.docType] || docTypeConfig.other) : null;
+
+          return (
+            <Card key={issue.id} onClick={() => setSelectedId(sel ? null : issue.id)}
+              style={{ padding: 0, cursor: "pointer", border: sel ? `1px solid ${AU.borderGold}` : undefined }}>
+              <div style={{ padding: "13px 16px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <Badge label={sev.label} color={sev.color} bg={sev.bg} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                    <code style={{ fontSize: 10, color: AU.textDim }}>{issue.ruleCode}</code>
+                    <Badge label={rt.label} color={rt.color} bg={rt.bg} />
+                    {issue.country && <span style={{ fontSize: 11, color: AU.gold, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{issue.country}</span>}
+                    {dt && <span style={{ fontSize: 10, color: AU.textDim }}>{dt.icon} {dt.label}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, lineHeight: 1.6, color: AU.textSoft }}>{issue.message}</div>
+                  {linkedDoc && (
+                    <div style={{ fontSize: 10, color: AU.textMuted, marginTop: 4 }}>
+                      Linked: <span style={{ color: AU.textSoft }}>{linkedDoc.filename}</span>
+                    </div>
+                  )}
+                  {issue.assignedTo && (
+                    <div style={{ fontSize: 10, color: AU.textMuted, marginTop: 2 }}>
+                      Assigned to: <span style={{ color: AU.textSoft }}>{issue.assignedTo}</span>
+                    </div>
+                  )}
+                </div>
+                <Badge
+                  label={issue.status === "ignored" ? "Ignored" : issue.status}
+                  color={issue.status === "resolved" ? AU.green : issue.status === "reviewed" ? AU.purple : issue.status === "ignored" ? AU.textDim : AU.textMuted}
+                  bg={issue.status === "resolved" ? AU.greenBg : issue.status === "reviewed" ? AU.purpleBg : issue.status === "ignored" ? AU.surfaceRaised : AU.surfaceRaised}
+                />
+              </div>
+              {sel && (
+                <div style={{ padding: "0 16px 14px", borderTop: `1px solid ${AU.border}`, paddingTop: 12 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                    <Button size="sm" onClick={e => { e.stopPropagation(); toggle(issue.id); }}>
+                      {issue.status === "open" ? "Mark Reviewed" : issue.status === "reviewed" ? "Resolve" : "Reopen"}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={e => { e.stopPropagation(); ignore(issue.id, "Accepted risk — advisor confirmed"); }}>
+                      Ignore with Reason
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={e => e.stopPropagation()}>Convert to Data Request</Button>
+                    {linkedDoc && <Button size="sm" variant="ghost" onClick={e => e.stopPropagation()}>View Document</Button>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      placeholder="Add a comment..."
+                      value={commentText}
+                      onChange={e => setCommentText(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        flex: 1, padding: "7px 12px", background: AU.surfaceRaised, border: `1px solid ${AU.border}`,
+                        borderRadius: 3, color: AU.text, fontSize: 12, fontFamily: "'Outfit', sans-serif", boxSizing: "border-box",
+                      }}
+                    />
+                    <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); setCommentText(""); }}>Post</Button>
+                  </div>
+                  {issue.status === "ignored" && issue.ignoreReason && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: AU.textMuted, fontStyle: "italic" }}>
+                      Ignored: {issue.ignoreReason}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Client Portal View ─────────────────────────────────────────
+function ClientPortalView() {
+  const [requests, setRequests] = useState(CLIENT_PORTAL_REQUESTS);
+  const [expandedId, setExpandedId] = useState(null);
+  const [responseTexts, setResponseTexts] = useState({});
+  const [uploadedFiles, setUploadedFiles] = useState({});
+  const [commentTexts, setCommentTexts] = useState({});
+
+  const openCount = requests.reduce((s, r) => s + r.items.filter(i => i.status === "open").length, 0);
+  const inProgressCount = requests.reduce((s, r) => s + r.items.filter(i => i.status === "in_progress").length, 0);
+  const fulfilledCount = requests.reduce((s, r) => s + r.items.filter(i => i.status === "fulfilled").length, 0);
+  const totalItems = requests.reduce((s, r) => s + r.items.length, 0);
+
+  const handleRespond = (reqId, itemId) => {
+    const key = `${reqId}-${itemId}`;
+    const text = responseTexts[key];
+    if (!text?.trim()) return;
+    setRequests(prev => prev.map(r => r.id === reqId ? {
+      ...r,
+      items: r.items.map(i => i.id === itemId ? { ...i, status: "fulfilled", response: text.trim() } : i),
+      status: r.items.every(i => i.id === itemId || i.status === "fulfilled") ? "fulfilled" : "in_progress",
+    } : r));
+    setResponseTexts(prev => ({ ...prev, [key]: "" }));
+  };
+
+  const handleFileUpload = (reqId, itemId) => {
+    const key = `${reqId}-${itemId}`;
+    setUploadedFiles(prev => ({ ...prev, [key]: true }));
+    setRequests(prev => prev.map(r => r.id === reqId ? {
+      ...r,
+      items: r.items.map(i => i.id === itemId ? { ...i, status: "fulfilled", response: "File uploaded" } : i),
+      status: r.items.every(i => i.id === itemId || i.status === "fulfilled") ? "fulfilled" : "in_progress",
+    } : r));
+  };
+
+  const reqStatusColor = (r) => {
+    if (r.items.every(i => i.status === "fulfilled")) return { label: "Completed", color: AU.green, bg: AU.greenBg };
+    if (r.items.some(i => i.status === "fulfilled" || i.status === "in_progress")) return { label: "In Progress", color: AU.amber, bg: AU.amberBg };
+    return { label: "Open", color: AU.textMuted, bg: AU.surfaceRaised };
+  };
+
+  const isOverdue = (date) => new Date(date) < new Date();
+
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 24px" }}>
+      <div style={{ padding: "36px 0 8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%", background: AU.blueBg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, border: `1px solid rgba(96,165,250,0.3)`,
+          }}>👤</div>
+          <div>
+            <div style={{ fontSize: 10, color: AU.blue, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>Client Portal</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, fontFamily: "'Outfit', sans-serif" }}>Nordveld Group</h1>
+          </div>
+        </div>
+        <p style={{ color: AU.textMuted, fontSize: 12, margin: "4px 0 0" }}>Nordveld Holding B.V. · FY 2025 · Public CbCR Readiness</p>
+      </div>
+      <GoldRule width={48} style={{ marginBottom: 24 }} />
+
+      <div style={{ display: "flex", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 120 }}><StatCard label="Open Items" value={openCount} sub="awaiting your response" /></Card>
+        <Card style={{ flex: 1, minWidth: 120 }}><StatCard label="In Progress" value={inProgressCount} sub="partially answered" /></Card>
+        <Card gold style={{ flex: 1, minWidth: 120 }}><StatCard label="Completed" value={fulfilledCount} sub={`of ${totalItems} total items`} /></Card>
+        <Card style={{ flex: 1, minWidth: 120 }}><StatCard label="Requests" value={requests.length} sub={`${requests.filter(r => isOverdue(r.dueDate)).length} overdue`} /></Card>
+      </div>
+
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 14, fontFamily: "'Outfit', sans-serif" }}>Data Requests from Your Advisor</div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {requests.map(req => {
+          const expanded = expandedId === req.id;
+          const st = reqStatusColor(req);
+          const overdue = isOverdue(req.dueDate) && !req.items.every(i => i.status === "fulfilled");
+
+          return (
+            <Card key={req.id} style={{ padding: 0, border: expanded ? `1px solid ${AU.borderGold}` : undefined }}>
+              <div
+                onClick={() => setExpandedId(expanded ? null : req.id)}
+                style={{ padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 14 }}
+              >
+                <div style={{
+                  width: 32, height: 32, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: st.bg, border: `1px solid ${st.color}30`, fontSize: 13, flexShrink: 0, marginTop: 2,
+                }}>
+                  {req.items.every(i => i.status === "fulfilled") ? "✓" : req.items.filter(i => i.status !== "open").length > 0 ? "◐" : "○"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, fontFamily: "'Outfit', sans-serif" }}>{req.title}</span>
+                    <Badge label={st.label} color={st.color} bg={st.bg} />
+                    {overdue && <Badge label="Overdue" color={AU.red} bg={AU.redBg} />}
+                  </div>
+                  <div style={{ fontSize: 12, color: AU.textMuted }}>
+                    Due: <span style={{ color: overdue ? AU.red : AU.textSoft, fontWeight: 600 }}>{req.dueDate}</span>
+                    <span style={{ margin: "0 6px", color: AU.textDim }}>·</span>
+                    {req.items.filter(i => i.status === "fulfilled").length}/{req.items.length} items completed
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, color: AU.textMuted, fontWeight: 600, marginTop: 8 }}>{expanded ? "▲" : "▼"}</span>
+              </div>
+
+              {expanded && (
+                <div style={{ borderTop: `1px solid ${AU.border}` }}>
+                  <div style={{ padding: "14px 18px", background: AU.surfaceRaised, borderBottom: `1px solid ${AU.border}` }}>
+                    <div style={{ fontSize: 12, color: AU.textSoft, lineHeight: 1.7 }}>{req.description}</div>
+                    <div style={{ fontSize: 10, color: AU.textDim, marginTop: 6 }}>Requested: {req.createdAt}</div>
+                  </div>
+
+                  {req.items.map(item => {
+                    const respKey = `${req.id}-${item.id}`;
+                    const fileUploaded = uploadedFiles[respKey];
+                    return (
+                      <div key={item.id} style={{ padding: "14px 18px", borderBottom: `1px solid ${AU.border}` }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                          <div style={{
+                            width: 22, height: 22, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center",
+                            background: item.status === "fulfilled" ? AU.greenBg : AU.surfaceRaised,
+                            border: `1px solid ${item.status === "fulfilled" ? "rgba(52,211,153,0.3)" : AU.border}`,
+                            fontSize: 10, color: item.status === "fulfilled" ? AU.green : AU.textDim, flexShrink: 0, marginTop: 1,
+                          }}>
+                            {item.status === "fulfilled" ? "✓" : "○"}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{item.label}</span>
+                              {item.country && <span style={{ fontSize: 10, color: AU.gold, fontWeight: 700 }}>{item.country}</span>}
+                            </div>
+
+                            {item.status === "fulfilled" && item.response && (
+                              <div style={{
+                                padding: "8px 12px", background: AU.greenBg, borderRadius: 4,
+                                border: "1px solid rgba(52,211,153,0.15)", fontSize: 12, color: AU.green, lineHeight: 1.6, marginTop: 4,
+                              }}>
+                                {item.response === "File uploaded" ? "📎 File uploaded successfully" : item.response}
+                              </div>
+                            )}
+
+                            {item.status !== "fulfilled" && (
+                              <div style={{ marginTop: 8 }}>
+                                {item.docType === "file_upload" ? (
+                                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                    <div style={{
+                                      flex: 1, padding: "10px 14px", background: AU.surfaceRaised,
+                                      border: `1px dashed ${AU.border}`, borderRadius: 4,
+                                      fontSize: 12, color: AU.textMuted, textAlign: "center", cursor: "pointer",
+                                    }}
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      📎 Click to upload file or drag & drop
+                                    </div>
+                                    <Button size="sm" onClick={e => { e.stopPropagation(); handleFileUpload(req.id, item.id); }}>Upload</Button>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                    <input
+                                      placeholder="Type your response..."
+                                      value={responseTexts[respKey] || ""}
+                                      onChange={e => setResponseTexts(prev => ({ ...prev, [respKey]: e.target.value }))}
+                                      onClick={e => e.stopPropagation()}
+                                      onKeyDown={e => e.key === "Enter" && handleRespond(req.id, item.id)}
+                                      style={{
+                                        flex: 1, padding: "8px 12px", background: AU.surfaceRaised,
+                                        border: `1px solid ${AU.border}`, borderRadius: 3, color: AU.text,
+                                        fontSize: 12, fontFamily: "'Outfit', sans-serif", boxSizing: "border-box",
+                                      }}
+                                    />
+                                    <Button size="sm" onClick={e => { e.stopPropagation(); handleRespond(req.id, item.id); }}>Submit</Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div style={{ padding: "12px 18px", background: AU.surfaceRaised }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input
+                        placeholder="Add a comment for your advisor..."
+                        value={commentTexts[req.id] || ""}
+                        onChange={e => setCommentTexts(prev => ({ ...prev, [req.id]: e.target.value }))}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          flex: 1, padding: "7px 12px", background: AU.surface,
+                          border: `1px solid ${AU.border}`, borderRadius: 3, color: AU.text,
+                          fontSize: 12, fontFamily: "'Outfit', sans-serif", boxSizing: "border-box",
+                        }}
+                      />
+                      <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); setCommentTexts(prev => ({ ...prev, [req.id]: "" })); }}>Send</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 28, padding: 20, background: AU.surface, border: `1px solid ${AU.border}`, borderRadius: 6, textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: AU.textMuted, lineHeight: 1.8 }}>
+          This portal is provided by <span style={{ color: AU.gold, fontWeight: 600 }}>AU Consulting</span> for secure data exchange.<br />
+          You can only see requests assigned to your organization. Internal advisor notes are not visible here.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // APP
 // ═══════════════════════════════════════════════════════════════
@@ -907,6 +1744,7 @@ window.__APP__ = function App() {
   const [client, setClient] = useState(null);
 
   const select = (c) => { setClient(c); setView("client"); };
+  const isPortal = view === "portal";
 
   const crumbs = [];
   if (view === "client" && client) {
@@ -917,10 +1755,11 @@ window.__APP__ = function App() {
   return (
     <div style={{ fontFamily: "'Outfit', system-ui, sans-serif", background: AU.bg, color: AU.text, minHeight: "100vh", fontSize: 13, lineHeight: 1.5 }}>
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      <NavBar onNavigate={setView} breadcrumbs={crumbs} />
+      <NavBar onNavigate={setView} breadcrumbs={crumbs} isPortal={isPortal} />
       <div style={{ paddingBottom: 48 }}>
         {view === "portfolio" && <PortfolioView onSelectClient={select} />}
         {view === "client" && client && <ClientDetailView client={client} />}
+        {view === "portal" && <ClientPortalView />}
       </div>
     </div>
   );

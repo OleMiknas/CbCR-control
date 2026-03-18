@@ -29,7 +29,107 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
+// ═══════════════════════════════════════════════════════════════
+// PASSWORD GATE
+// SHA-256 hashed — change the hash below to update the password
+// Current password: cbcr2026
+// ═══════════════════════════════════════════════════════════════
+const PASS_HASH = "83cdffac82a82208fe49b422600851e2ab4b67542684e6b8dca9b75ed5bd927a";
 
+async function sha256(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function PasswordGate({ onAuth }) {
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("cbcr_auth") === "1") { onAuth(); return; }
+    inputRef.current?.focus();
+  }, []);
+
+  const submit = async () => {
+    setChecking(true);
+    setError(false);
+    const hash = await sha256(pw.trim());
+    if (hash === PASS_HASH) {
+      sessionStorage.setItem("cbcr_auth", "1");
+      onAuth();
+    } else {
+      setError(true);
+      setPw("");
+      setChecking(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      background: "#0B0F1A", fontFamily: "'Outfit', system-ui, sans-serif",
+    }}>
+      <div style={{ width: 380, textAlign: "center" }}>
+        <svg width={44} height={44} viewBox="0 0 28 28" fill="none" style={{ marginBottom: 20 }}>
+          <circle cx="14" cy="14" r="12" stroke="#C9A84C" strokeWidth="1.5" opacity="0.4" />
+          <circle cx="14" cy="14" r="6" stroke="#C9A84C" strokeWidth="1" opacity="0.25" />
+          <line x1="14" y1="1" x2="14" y2="7" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="14" y1="21" x2="14" y2="27" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="1" y1="14" x2="7" y2="14" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="21" y1="14" x2="27" y2="14" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" />
+          <circle cx="14" cy="14" r="2.5" fill="#C9A84C" />
+        </svg>
+        <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: "0.06em", color: "#E8ECF4", marginBottom: 4 }}>
+          CbCR <span style={{ color: "#C9A84C" }}>CONTROL</span>
+        </div>
+        <div style={{ fontSize: 9, letterSpacing: "0.2em", color: "#6B7A96", textTransform: "uppercase", marginBottom: 32 }}>by AU Consulting</div>
+
+        <div style={{
+          background: "#111827", border: "1px solid #1E2A42", borderRadius: 8, padding: 32,
+          boxShadow: "0 0 40px rgba(201,168,76,0.04)",
+        }}>
+          <div style={{ fontSize: 12, color: "#A0AECB", marginBottom: 16, fontWeight: 500 }}>Enter access code to continue</div>
+          <input
+            ref={inputRef}
+            type="password"
+            value={pw}
+            onChange={e => { setPw(e.target.value); setError(false); }}
+            onKeyDown={e => e.key === "Enter" && pw.trim() && submit()}
+            placeholder="Access code"
+            style={{
+              width: "100%", padding: "12px 16px", background: "#162032",
+              border: `1px solid ${error ? "#F87171" : "#1E2A42"}`,
+              borderRadius: 4, color: "#E8ECF4", fontSize: 14, fontFamily: "'Outfit', sans-serif",
+              outline: "none", boxSizing: "border-box", transition: "border-color 0.2s",
+              textAlign: "center", letterSpacing: "0.15em",
+            }}
+          />
+          {error && <div style={{ fontSize: 11, color: "#F87171", marginTop: 8, fontWeight: 500 }}>Invalid access code</div>}
+          <button
+            onClick={submit}
+            disabled={!pw.trim() || checking}
+            style={{
+              width: "100%", marginTop: 14, padding: "11px 0", borderRadius: 4,
+              border: `1px solid rgba(201,168,76,0.3)`, cursor: pw.trim() ? "pointer" : "not-allowed",
+              background: pw.trim() ? "rgba(201,168,76,0.15)" : "#162032",
+              color: pw.trim() ? "#C9A84C" : "#3E4E6A",
+              fontWeight: 700, fontSize: 12, fontFamily: "'Outfit', sans-serif",
+              letterSpacing: "0.08em", transition: "all 0.2s",
+            }}
+          >
+            {checking ? "VERIFYING..." : "ENTER"}
+          </button>
+        </div>
+
+        <div style={{ marginTop: 24, height: 2, width: 48, margin: "24px auto 0", background: "linear-gradient(90deg, #C9A84C, rgba(201,168,76,0.3), transparent)", borderRadius: 1 }} />
+        <div style={{ fontSize: 10, color: "#3E4E6A", marginTop: 14 }}>Restricted access · Prototype demo</div>
+      </div>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════
 // AU CONSULTING DESIGN SYSTEM
@@ -827,8 +927,15 @@ window.__APP__ = function App() {
 }
 
 const App = window.__APP__;
+
+function Root() {
+  const [authed, setAuthed] = useState(false);
+  if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />;
+  return React.createElement(App);
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+root.render(React.createElement(Root));
 </script>
 </body>
 </html>

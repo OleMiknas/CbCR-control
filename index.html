@@ -753,8 +753,11 @@ function ClientDetailView({ client }) {
     { key: "documents", label: `Documents${isDemo ? ` (${DOCUMENTS.length})` : ""}` },
     { key: "issues", label: `Issues${isDemo ? ` (${VALIDATION_ISSUES.length})` : ""}` },
     { key: "doc_issues", label: `Doc Issues${isDemo ? ` (${DOCUMENT_ISSUES.length})` : ""}` },
+    { key: "risk", label: "Risk & Analytics" },
+    { key: "reconciliation", label: "Reconciliation" },
     { key: "requests", label: "Data Requests" },
     { key: "report", label: "Report" },
+    { key: "filing", label: "Filing" },
   ];
 
   return (
@@ -792,8 +795,11 @@ function ClientDetailView({ client }) {
       {activeTab === "documents" && isDemo && <DocumentsTab />}
       {activeTab === "issues" && isDemo && <IssuesTab />}
       {activeTab === "doc_issues" && isDemo && <DocumentIssuesTab />}
+      {activeTab === "risk" && isDemo && <RiskDashboardTab />}
+      {activeTab === "reconciliation" && isDemo && <ReconciliationTab />}
       {activeTab === "requests" && isDemo && <RequestsTab />}
       {activeTab === "report" && isDemo && <ReportTab client={client} />}
+      {activeTab === "filing" && isDemo && <FilingTab client={client} />}
       {!isDemo && activeTab !== "overview" && (
         <Card style={{ textAlign: "center", padding: 48, color: AU.textMuted }}>
           <CompassMark size={40} />
@@ -1520,6 +1526,725 @@ function DocumentIssuesTab() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Reconciliation Tab ─────────────────────────────────────────
+function ReconciliationTab() {
+  const [threshold, setThreshold] = useState(5);
+  const [reconRun, setReconRun] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  // CbCR dataset totals (from JURISDICTION_DATA)
+  const cbcrTotals = JURISDICTION_DATA.reduce((a, j) => ({
+    revenue: a.revenue + j.revenue, profit: a.profit + j.profit,
+    taxPaid: a.taxPaid + j.taxPaid, employees: a.employees + j.employees,
+    entities: a.entities + j.entities,
+  }), { revenue: 0, profit: 0, taxPaid: 0, employees: 0, entities: 0 });
+
+  // Simulated group financial statement totals (slightly different to create variances)
+  const fsTotals = {
+    revenue: 1258000000, profit: 256500000, taxPaid: 47200000, employees: 5040, entities: 16,
+  };
+
+  const RECON_LINES = [
+    { field: "Total Revenue", cbcr: cbcrTotals.revenue, fs: fsTotals.revenue },
+    { field: "Profit Before Tax", cbcr: cbcrTotals.profit, fs: fsTotals.profit },
+    { field: "Tax Paid", cbcr: cbcrTotals.taxPaid, fs: fsTotals.taxPaid },
+    { field: "Total Employees", cbcr: cbcrTotals.employees, fs: fsTotals.employees, isCurrency: false },
+    { field: "Total Entities", cbcr: cbcrTotals.entities, fs: fsTotals.entities, isCurrency: false },
+  ];
+
+  const reconResults = RECON_LINES.map(line => {
+    const diff = line.cbcr - line.fs;
+    const pctDiff = line.fs !== 0 ? ((diff / line.fs) * 100) : 0;
+    const breached = Math.abs(pctDiff) > threshold;
+    return { ...line, diff, pctDiff, breached };
+  });
+
+  const breachedCount = reconResults.filter(r => r.breached).length;
+
+  // Per-jurisdiction reconciliation against FS breakdowns
+  const JURISDICTION_RECON = [
+    { country: "NL", countryName: "Netherlands", cbcrRev: 245000000, fsRev: 247000000, cbcrProf: 38000000, fsProf: 38500000, cbcrTax: 9500000, fsTax: 9500000 },
+    { country: "DE", countryName: "Germany", cbcrRev: 189000000, fsRev: 189000000, cbcrProf: 22000000, fsProf: 22800000, cbcrTax: 6600000, fsTax: 6840000 },
+    { country: "FR", countryName: "France", cbcrRev: 134000000, fsRev: 134000000, cbcrProf: 15000000, fsProf: 15000000, cbcrTax: 3750000, fsTax: 3750000 },
+    { country: "US", countryName: "United States", cbcrRev: 312000000, fsRev: 318000000, cbcrProf: 51000000, fsProf: 52000000, cbcrTax: 10710000, fsTax: 10920000 },
+    { country: "CN", countryName: "China", cbcrRev: 98000000, fsRev: 98000000, cbcrProf: 14000000, fsProf: 14200000, cbcrTax: 3500000, fsTax: 3550000 },
+    { country: "SG", countryName: "Singapore", cbcrRev: 67000000, fsRev: 67000000, cbcrProf: 28000000, fsProf: 28000000, cbcrTax: 1400000, fsTax: 1400000 },
+    { country: "IE", countryName: "Ireland", cbcrRev: 156000000, fsRev: 156000000, cbcrProf: 89000000, fsProf: 89000000, cbcrTax: 11100000, fsTax: 11100000 },
+    { country: "BR", countryName: "Brazil", cbcrRev: 42000000, fsRev: 49000000, cbcrProf: -3000000, fsProf: -3000000, cbcrTax: 0, fsTax: 140000 },
+  ];
+
+  const jurisdictionResults = JURISDICTION_RECON.map(j => {
+    const revDiff = j.fsRev !== 0 ? (((j.cbcrRev - j.fsRev) / j.fsRev) * 100) : 0;
+    const profDiff = j.fsProf !== 0 ? (((j.cbcrProf - j.fsProf) / j.fsProf) * 100) : 0;
+    const taxDiff = j.fsTax !== 0 ? (((j.cbcrTax - j.fsTax) / j.fsTax) * 100) : 0;
+    const hasIssue = Math.abs(revDiff) > threshold || Math.abs(profDiff) > threshold || Math.abs(taxDiff) > threshold;
+    return { ...j, revDiff, profDiff, taxDiff, hasIssue };
+  });
+
+  const jurisdictionIssueCount = jurisdictionResults.filter(j => j.hasIssue).length;
+
+  const runRecon = () => {
+    setRunning(true);
+    setTimeout(() => { setRunning(false); setReconRun(true); }, 1800);
+  };
+
+  const fmtRecon = (n, isCurrency = true) => {
+    if (isCurrency) {
+      if (Math.abs(n) >= 1e6) return `\u20AC${(n / 1e6).toFixed(1)}M`;
+      if (Math.abs(n) >= 1e3) return `\u20AC${(n / 1e3).toFixed(0)}K`;
+      return `\u20AC${n}`;
+    }
+    return n.toLocaleString();
+  };
+
+  const VarianceCell = ({ pct }) => {
+    const abs = Math.abs(pct);
+    const color = abs > threshold ? AU.red : abs > threshold * 0.6 ? AU.amber : AU.green;
+    return (
+      <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: "'Outfit', sans-serif" }}>
+        {pct > 0 ? "+" : ""}{pct.toFixed(1)}%
+      </span>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Reconciliation" value={reconRun ? "Complete" : "Pending"} sub={reconRun ? `Run just now` : "Not yet run"} />
+        </Card>
+        <Card gold={breachedCount > 0 && reconRun} style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Variances" value={reconRun ? breachedCount : "—"} sub={reconRun ? `above ${threshold}% threshold` : "Run reconciliation first"} />
+        </Card>
+        <Card style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Jurisdiction Issues" value={reconRun ? jurisdictionIssueCount : "—"} sub={reconRun ? "jurisdictions with variances" : ""} />
+        </Card>
+        <Card style={{ flex: 1, minWidth: 130 }}>
+          <div style={{ fontSize: 10, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>Threshold</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input
+              type="range" min="1" max="15" value={threshold}
+              onChange={e => { setThreshold(parseInt(e.target.value)); if (reconRun) setReconRun(true); }}
+              style={{ flex: 1, accentColor: AU.gold }}
+            />
+            <span style={{ fontSize: 20, fontWeight: 700, fontFamily: "'Outfit', sans-serif", minWidth: 40 }}>{threshold}%</span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Run button */}
+      {!reconRun && (
+        <Card gold style={{ marginBottom: 24, textAlign: "center", padding: 32 }}>
+          <CompassMark size={36} />
+          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: "'Outfit', sans-serif", marginTop: 14, marginBottom: 6 }}>
+            Compare CbCR Data Against Group Financial Statements
+          </div>
+          <div style={{ fontSize: 12, color: AU.textMuted, marginBottom: 16 }}>
+            Reconciliation compares aggregated CbCR jurisdiction data with uploaded group financials to identify material differences before filing.
+          </div>
+          <Button onClick={runRecon} style={{ opacity: running ? 0.6 : 1 }}>
+            {running ? "Running Reconciliation..." : "Run Reconciliation"}
+          </Button>
+        </Card>
+      )}
+
+      {reconRun && (
+        <>
+          {/* ── Aggregate Comparison ── */}
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Aggregate Reconciliation — CbCR vs Group Financial Statements</div>
+          <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+                  {["Field", "CbCR Total", "FS Total", "Difference", "Variance", "Status"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {reconResults.map((r, i) => {
+                  const isCurr = r.isCurrency !== false;
+                  return (
+                    <tr key={i} style={{ borderBottom: `1px solid ${AU.border}`, background: r.breached ? "rgba(248,113,113,0.03)" : "transparent" }}>
+                      <td style={{ padding: "12px 14px", fontWeight: 600, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>{r.field}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 12, color: AU.textSoft }}>{fmtRecon(r.cbcr, isCurr)}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 12, color: AU.textSoft }}>{fmtRecon(r.fs, isCurr)}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 12, color: r.diff !== 0 ? (r.breached ? AU.red : AU.textMuted) : AU.textDim }}>
+                        {r.diff > 0 ? "+" : ""}{fmtRecon(r.diff, isCurr)}
+                      </td>
+                      <td style={{ padding: "12px 14px" }}><VarianceCell pct={r.pctDiff} /></td>
+                      <td style={{ padding: "12px 14px" }}>
+                        {r.breached
+                          ? <Badge label="Breached" color={AU.red} bg={AU.redBg} />
+                          : <Badge label="Within" color={AU.green} bg={AU.greenBg} />}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+
+          {/* ── Jurisdiction Breakdown ── */}
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Per-Jurisdiction Variance Analysis</div>
+          <Card style={{ padding: 0, overflow: "auto", marginBottom: 24 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+                  {["Jurisdiction", "Rev Variance", "Profit Variance", "Tax Variance", "Status"].map(h => (
+                    <th key={h} style={{ textAlign: "left", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {jurisdictionResults.map(j => (
+                  <tr key={j.country} style={{ borderBottom: `1px solid ${AU.border}`, background: j.hasIssue ? "rgba(248,113,113,0.03)" : "transparent" }}>
+                    <td style={{ padding: "12px 14px" }}>
+                      <span style={{ fontWeight: 700, fontSize: 12, color: AU.gold, fontFamily: "'Outfit', sans-serif" }}>{j.country}</span>
+                      <span style={{ fontSize: 11, color: AU.textMuted, marginLeft: 8 }}>{j.countryName}</span>
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <VarianceCell pct={j.revDiff} />
+                        <span style={{ fontSize: 10, color: AU.textDim }}>({fmtRecon(j.cbcrRev - j.fsRev, true)})</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <VarianceCell pct={j.profDiff} />
+                        <span style={{ fontSize: 10, color: AU.textDim }}>({fmtRecon(j.cbcrProf - j.fsProf, true)})</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <VarianceCell pct={j.taxDiff} />
+                        <span style={{ fontSize: 10, color: AU.textDim }}>({fmtRecon(j.cbcrTax - j.fsTax, true)})</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      {j.hasIssue
+                        ? <Badge label="Variance" color={AU.red} bg={AU.redBg} />
+                        : <Badge label="Matched" color={AU.green} bg={AU.greenBg} />}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          {/* ── Reconciliation Issues ── */}
+          {(breachedCount > 0 || jurisdictionIssueCount > 0) && (
+            <>
+              <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Reconciliation Issues</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
+                {reconResults.filter(r => r.breached).map((r, i) => (
+                  <Card key={`agg-${i}`} style={{ padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <Badge label="High" color={AU.red} bg={AU.redBg} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>
+                          Aggregate {r.field} variance of {r.pctDiff > 0 ? "+" : ""}{r.pctDiff.toFixed(1)}% exceeds {threshold}% threshold
+                        </div>
+                        <div style={{ fontSize: 11, color: AU.textMuted, marginTop: 2 }}>
+                          CbCR reports {fmtRecon(r.cbcr, r.isCurrency !== false)} vs {fmtRecon(r.fs, r.isCurrency !== false)} in group financial statements. Difference: {fmtRecon(r.diff, r.isCurrency !== false)}.
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                {jurisdictionResults.filter(j => j.hasIssue).map(j => (
+                  <Card key={`jur-${j.country}`} style={{ padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <Badge label="Medium" color={AU.amber} bg={AU.amberBg} />
+                      <span style={{ fontSize: 11, color: AU.gold, fontWeight: 700, minWidth: 20 }}>{j.country}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>
+                          {j.countryName} — variance detected
+                        </div>
+                        <div style={{ fontSize: 11, color: AU.textMuted, marginTop: 2 }}>
+                          {Math.abs(j.revDiff) > threshold && `Revenue: ${j.revDiff > 0 ? "+" : ""}${j.revDiff.toFixed(1)}%. `}
+                          {Math.abs(j.profDiff) > threshold && `Profit: ${j.profDiff > 0 ? "+" : ""}${j.profDiff.toFixed(1)}%. `}
+                          {Math.abs(j.taxDiff) > threshold && `Tax: ${j.taxDiff > 0 ? "+" : ""}${j.taxDiff.toFixed(1)}%. `}
+                          Requires investigation before filing.
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── Source Info ── */}
+          <Card style={{ padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 6, background: AU.surfaceRaised,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, border: `1px solid ${AU.border}`,
+              }}>📑</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 12, fontFamily: "'Outfit', sans-serif" }}>Source: Nordveld Group Consolidated Financial Statements FY2025</div>
+                <div style={{ fontSize: 11, color: AU.textMuted }}>Uploaded 2026-03-12 · PDF · 48 pages · Extracted totals verified by J. van der Berg</div>
+              </div>
+              <Button size="sm" variant="secondary">View Document</Button>
+              <Button size="sm" variant="ghost">Re-extract</Button>
+            </div>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Filing Pipeline Tab ────────────────────────────────────────
+function FilingTab({ client }) {
+  const FILING_STAGES = [
+    { key: "draft", label: "Draft", icon: "📝", description: "Filing package prepared from validated data" },
+    { key: "in_review", label: "In Review", icon: "👁", description: "Advisor reviewing filing package for accuracy" },
+    { key: "approved", label: "Approved", icon: "✓", description: "Filing approved by authorized reviewer" },
+    { key: "xml_generated", label: "XML Generated", icon: "⚙", description: "CbCR XML artifact generated per OECD schema" },
+    { key: "schema_validated", label: "Schema Validated", icon: "🔍", description: "XML validated against XSD schema requirements" },
+    { key: "submitted", label: "Submitted", icon: "📤", description: "Package submitted to BZSt via DIP connector" },
+    { key: "processing", label: "Processing", icon: "⏳", description: "Awaiting regulator processing confirmation" },
+    { key: "accepted", label: "Accepted", icon: "✅", description: "Filing accepted by tax authority" },
+  ];
+
+  const [currentStage, setCurrentStage] = useState("draft");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [schemaResults, setSchemaResults] = useState(null);
+  const [xmlGenerated, setXmlGenerated] = useState(false);
+  const [filingLog, setFilingLog] = useState([
+    { time: "2026-03-18 14:32", action: "Filing draft created", user: "System", detail: "Auto-generated from validated jurisdiction data" },
+  ]);
+
+  const stageIndex = FILING_STAGES.findIndex(s => s.key === currentStage);
+
+  const advanceStage = () => {
+    const nextIdx = stageIndex + 1;
+    if (nextIdx >= FILING_STAGES.length) return;
+    const next = FILING_STAGES[nextIdx];
+    setIsProcessing(true);
+
+    // Simulate processing delays
+    const delay = next.key === "xml_generated" ? 1500 : next.key === "schema_validated" ? 2000 : next.key === "processing" ? 3000 : 800;
+
+    setTimeout(() => {
+      setCurrentStage(next.key);
+      setIsProcessing(false);
+
+      const timestamp = new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", "");
+      let logEntry = { time: timestamp, action: `Stage: ${next.label}`, user: next.key === "approved" ? "O. Abboud" : "System", detail: next.description };
+
+      if (next.key === "xml_generated") {
+        setXmlGenerated(true);
+        logEntry.detail = "CbCR_Nordveld_FY2025_v1.xml generated (OECD CbCR XML Schema 2.0)";
+      }
+      if (next.key === "schema_validated") {
+        setSchemaResults({ valid: true, errors: 0, warnings: 1, warningDetail: "Optional field 'tangible_assets' missing for 3 jurisdictions" });
+        logEntry.detail = "Schema validation passed with 1 warning";
+      }
+      if (next.key === "submitted") {
+        logEntry.detail = "Submitted to BZSt DIP endpoint · Transfer ID: DIP-2026-NV-00847";
+      }
+      if (next.key === "accepted") {
+        logEntry.detail = "Filing accepted · Reference: BZSt-PCBCR-2026-384721 · Timestamp: " + timestamp;
+      }
+
+      setFilingLog(prev => [logEntry, ...prev]);
+    }, delay);
+  };
+
+  const resetFiling = () => {
+    setCurrentStage("draft");
+    setXmlGenerated(false);
+    setSchemaResults(null);
+    setFilingLog([{ time: new Date().toLocaleString("sv-SE", { hour12: false }).replace(",", ""), action: "Filing reset", user: "O. Abboud", detail: "Filing pipeline reset to draft" }]);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Filing Status" value={FILING_STAGES[stageIndex].label} sub={`Stage ${stageIndex + 1} of ${FILING_STAGES.length}`} />
+        </Card>
+        <Card style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Target Authority" value="BZSt" sub="Germany · DIP connector" />
+        </Card>
+        <Card style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Schema" value="OECD 2.0" sub="CbCR XML Schema" />
+        </Card>
+        <Card gold={currentStage === "accepted"} style={{ flex: 1, minWidth: 130 }}>
+          <StatCard label="Submission" value={currentStage === "accepted" ? "Accepted" : "Pending"} sub={currentStage === "accepted" ? "Filing complete" : "Not yet submitted"} />
+        </Card>
+      </div>
+
+      {/* ── Pipeline Visualization ── */}
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Filing Pipeline</div>
+      <Card gold={currentStage === "accepted"} style={{ marginBottom: 24, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto", paddingBottom: 8 }}>
+          {FILING_STAGES.map((stage, i) => {
+            const isComplete = i < stageIndex;
+            const isCurrent = i === stageIndex;
+            const isFuture = i > stageIndex;
+            return (
+              <div key={stage.key} style={{ display: "flex", alignItems: "flex-start", flex: 1, minWidth: 95 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: isCurrent && isProcessing ? 14 : 16,
+                    background: isComplete ? AU.gold : isCurrent ? AU.goldDim : AU.surfaceRaised,
+                    color: isComplete ? AU.navyDark : isCurrent ? AU.gold : AU.textDim,
+                    border: isCurrent ? `2px solid ${AU.gold}` : isComplete ? "none" : `1px solid ${AU.border}`,
+                    transition: "all 0.3s",
+                    boxShadow: isCurrent ? `0 0 12px rgba(201,168,76,0.3)` : "none",
+                  }}>
+                    {isComplete ? "✓" : isCurrent && isProcessing ? "⟳" : stage.icon}
+                  </div>
+                  <div style={{
+                    fontSize: 10, fontWeight: isCurrent ? 700 : 600, fontFamily: "'Outfit', sans-serif",
+                    color: isComplete ? AU.gold : isCurrent ? AU.text : AU.textDim,
+                    marginTop: 8, textAlign: "center", lineHeight: 1.3,
+                  }}>
+                    {stage.label}
+                  </div>
+                  {isCurrent && (
+                    <div style={{ fontSize: 9, color: AU.textMuted, marginTop: 3, textAlign: "center", maxWidth: 90 }}>
+                      {isProcessing ? "Processing..." : "Current"}
+                    </div>
+                  )}
+                </div>
+                {i < FILING_STAGES.length - 1 && (
+                  <div style={{
+                    height: 2, flex: "0 0 auto", width: 12, marginTop: 19,
+                    background: isComplete ? AU.gold : AU.border,
+                    transition: "background 0.3s",
+                  }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 20, display: "flex", gap: 10, alignItems: "center", borderTop: `1px solid ${AU.border}`, paddingTop: 16 }}>
+          {currentStage !== "accepted" && (
+            <Button onClick={advanceStage} style={{ opacity: isProcessing ? 0.6 : 1 }}>
+              {isProcessing ? "Processing..." :
+                stageIndex === 0 ? "Submit for Review" :
+                stageIndex === 1 ? "Approve Filing" :
+                stageIndex === 2 ? "Generate XML" :
+                stageIndex === 3 ? "Validate Schema" :
+                stageIndex === 4 ? "Submit to BZSt" :
+                stageIndex === 5 ? "Check Status" :
+                stageIndex === 6 ? "Confirm Acceptance" : "Next"}
+            </Button>
+          )}
+          {currentStage === "accepted" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 14 }}>✅</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: AU.green, fontFamily: "'Outfit', sans-serif" }}>Filing accepted by BZSt</span>
+            </div>
+          )}
+          <Button variant="ghost" size="sm" onClick={resetFiling}>Reset Pipeline</Button>
+        </div>
+      </Card>
+
+      {/* ── XML Artifact ── */}
+      {xmlGenerated && (
+        <>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Filing Artifacts</div>
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 6, background: AU.goldDim,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 20, border: `1px solid ${AU.borderGold}`,
+              }}>📦</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, fontFamily: "'Outfit', sans-serif" }}>CbCR_Nordveld_FY2025_v1.xml</div>
+                <div style={{ fontSize: 11, color: AU.textMuted }}>OECD CbCR XML Schema 2.0 · 8 jurisdictions · 15 entities · Generated just now</div>
+              </div>
+              <Button size="sm" variant="secondary">Download XML</Button>
+              <Button size="sm" variant="ghost">View Structure</Button>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* ── Schema Validation Results ── */}
+      {schemaResults && (
+        <>
+          <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Schema Validation</div>
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 5, background: schemaResults.valid ? AU.green : AU.red }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: schemaResults.valid ? AU.green : AU.red, fontFamily: "'Outfit', sans-serif" }}>
+                  {schemaResults.valid ? "Validation Passed" : "Validation Failed"}
+                </span>
+              </div>
+              <span style={{ fontSize: 12, color: AU.textMuted }}>Errors: <span style={{ fontWeight: 700, color: schemaResults.errors > 0 ? AU.red : AU.green }}>{schemaResults.errors}</span></span>
+              <span style={{ fontSize: 12, color: AU.textMuted }}>Warnings: <span style={{ fontWeight: 700, color: schemaResults.warnings > 0 ? AU.amber : AU.green }}>{schemaResults.warnings}</span></span>
+            </div>
+            {schemaResults.warnings > 0 && (
+              <div style={{ padding: "10px 14px", background: AU.amberBg, borderRadius: 4, border: "1px solid rgba(251,191,36,0.15)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Badge label="Warning" color={AU.amber} bg="transparent" />
+                  <span style={{ fontSize: 12, color: AU.amber }}>{schemaResults.warningDetail}</span>
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* ── Filing Checklist ── */}
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Pre-Filing Checklist</div>
+      <Card style={{ marginBottom: 24 }}>
+        {[
+          { label: "Structured data uploaded and mapped", done: true },
+          { label: "Validation issues resolved or acknowledged", done: true },
+          { label: "Document review completed", done: false, note: "2 document issues still open" },
+          { label: "Client data requests fulfilled", done: false, note: "1 request still in progress" },
+          { label: "Readiness score above threshold (>80%)", done: false, note: "Currently 72%" },
+          { label: "Authorized reviewer approved filing", done: stageIndex >= 2 },
+          { label: "XML generated and schema-validated", done: stageIndex >= 4 },
+          { label: "Filing submitted to tax authority", done: stageIndex >= 5 },
+        ].map((item, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < 7 ? `1px solid ${AU.border}` : "none" }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center",
+              background: item.done ? AU.greenBg : AU.surfaceRaised,
+              border: `1px solid ${item.done ? "rgba(52,211,153,0.3)" : AU.border}`,
+              fontSize: 10, color: item.done ? AU.green : AU.textDim, flexShrink: 0,
+            }}>
+              {item.done ? "✓" : "○"}
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: item.done ? AU.textSoft : AU.text, fontFamily: "'Outfit', sans-serif" }}>{item.label}</span>
+              {item.note && !item.done && <span style={{ fontSize: 11, color: AU.amber, marginLeft: 8 }}>— {item.note}</span>}
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      {/* ── Filing Audit Log ── */}
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Filing Audit Log</div>
+      <Card>
+        {filingLog.map((entry, i) => (
+          <div key={i} style={{ display: "flex", gap: 16, padding: "10px 0", borderBottom: i < filingLog.length - 1 ? `1px solid ${AU.border}` : "none" }}>
+            <span style={{ fontSize: 10, color: AU.textDim, minWidth: 130, flexShrink: 0, fontFamily: "monospace" }}>{entry.time}</span>
+            <div style={{ width: 4, borderRadius: 2, background: i === 0 ? AU.gold : AU.border, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{entry.action}</div>
+              <div style={{ fontSize: 11, color: AU.textMuted }}>{entry.detail} · {entry.user}</div>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+// ─── Risk Dashboard Tab ─────────────────────────────────────────
+function RiskDashboardTab() {
+  const totalRev = JURISDICTION_DATA.reduce((s, j) => s + j.revenue, 0);
+  const totalProf = JURISDICTION_DATA.reduce((s, j) => s + j.profit, 0);
+  const totalTax = JURISDICTION_DATA.reduce((s, j) => s + j.taxPaid, 0);
+  const totalEmp = JURISDICTION_DATA.reduce((s, j) => s + j.employees, 0);
+  const groupETR = ((totalTax / totalProf) * 100).toFixed(1);
+  const groupPPE = Math.round(totalProf / totalEmp);
+
+  const riskData = JURISDICTION_DATA.map(j => {
+    const etr = j.profit > 0 ? ((j.taxPaid / j.profit) * 100) : null;
+    const ppe = j.employees > 0 ? Math.round(j.profit / j.employees) : null;
+    const rpe = j.employees > 0 ? Math.round(j.revenue / j.employees) : null;
+    const profitShare = ((j.profit / totalProf) * 100).toFixed(1);
+    const empShare = ((j.employees / totalEmp) * 100).toFixed(1);
+    const pillarTwo = etr !== null && etr < 15;
+    const lowSubstance = ppe !== null && ppe > groupPPE * 5;
+    const concentrationRisk = parseFloat(profitShare) > 20 && parseFloat(empShare) < 5;
+    const riskLevel = (pillarTwo && lowSubstance) ? "critical" : (pillarTwo || lowSubstance || concentrationRisk) ? "elevated" : etr !== null && etr < parseFloat(groupETR) * 0.7 ? "watch" : "normal";
+    return { ...j, etr, ppe, rpe, profitShare, empShare, pillarTwo, lowSubstance, concentrationRisk, riskLevel };
+  }).sort((a, b) => {
+    const order = { critical: 0, elevated: 1, watch: 2, normal: 3 };
+    return order[a.riskLevel] - order[b.riskLevel];
+  });
+
+  const riskLevelConfig = {
+    critical: { label: "Critical", color: AU.red, bg: AU.redBg },
+    elevated: { label: "Elevated", color: AU.amber, bg: AU.amberBg },
+    watch: { label: "Watch", color: AU.blue, bg: AU.blueBg },
+    normal: { label: "Normal", color: AU.green, bg: AU.greenBg },
+  };
+
+  const critCount = riskData.filter(r => r.riskLevel === "critical").length;
+  const elevCount = riskData.filter(r => r.riskLevel === "elevated").length;
+  const pillarTwoCount = riskData.filter(r => r.pillarTwo).length;
+
+  // Simple bar chart helper
+  const Bar = ({ value, max, color, width = 80 }) => (
+    <div style={{ width, height: 8, background: AU.border, borderRadius: 4, overflow: "hidden" }}>
+      <div style={{ width: `${Math.min(Math.abs(value) / max * 100, 100)}%`, height: "100%", borderRadius: 4, background: color, transition: "width 0.3s" }} />
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Group ETR" value={`${groupETR}%`} sub="weighted average" /></Card>
+        <Card gold={critCount > 0} style={{ flex: 1, minWidth: 130 }}><StatCard label="Risk Flags" value={critCount + elevCount} sub={`${critCount} critical · ${elevCount} elevated`} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Pillar Two" value={pillarTwoCount} sub={`jurisdictions < 15% ETR`} /></Card>
+        <Card style={{ flex: 1, minWidth: 130 }}><StatCard label="Profit/Employee" value={`\u20AC${Math.round(groupPPE / 1000)}K`} sub="group average" /></Card>
+      </div>
+
+      {/* ── ETR Heatmap ── */}
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Effective Tax Rate by Jurisdiction</div>
+      <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
+        <div style={{ padding: "16px 18px", display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {riskData.filter(r => r.etr !== null).map(j => {
+            const etrColor = j.etr < 10 ? AU.red : j.etr < 15 ? AU.amber : j.etr < 20 ? AU.gold : AU.green;
+            return (
+              <div key={j.country} style={{
+                flex: "1 1 auto", minWidth: 90, padding: "14px 16px", background: AU.surfaceRaised,
+                borderRadius: 4, border: `1px solid ${j.pillarTwo ? "rgba(248,113,113,0.3)" : AU.border}`,
+                textAlign: "center", position: "relative",
+              }}>
+                {j.pillarTwo && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: AU.red, borderRadius: "4px 4px 0 0" }} />}
+                <div style={{ fontSize: 11, fontWeight: 700, color: AU.gold, fontFamily: "'Outfit', sans-serif", marginBottom: 6 }}>{j.country}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: etrColor, fontFamily: "'Outfit', sans-serif", lineHeight: 1 }}>{j.etr.toFixed(1)}%</div>
+                <div style={{ fontSize: 9, color: AU.textDim, marginTop: 4 }}>{j.countryName}</div>
+                {j.pillarTwo && <div style={{ fontSize: 8, color: AU.red, fontWeight: 700, marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Below 15%</div>}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ padding: "8px 18px", borderTop: `1px solid ${AU.border}`, display: "flex", gap: 16, alignItems: "center" }}>
+          <span style={{ fontSize: 10, color: AU.textDim, fontWeight: 600 }}>Legend:</span>
+          {[{ label: "< 10%", color: AU.red }, { label: "10-15%", color: AU.amber }, { label: "15-20%", color: AU.gold }, { label: "> 20%", color: AU.green }].map(l => (
+            <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
+              <span style={{ fontSize: 10, color: AU.textMuted }}>{l.label}</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8 }}>
+            <div style={{ width: 16, height: 2, background: AU.red, borderRadius: 1 }} />
+            <span style={{ fontSize: 10, color: AU.textMuted }}>Pillar Two flag</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Jurisdiction Risk Cards ── */}
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Jurisdiction Risk Assessment</div>
+      <Card style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${AU.border}` }}>
+              {["Jurisdiction", "Risk", "ETR", "Profit/Emp", "Rev/Emp", "Profit Share", "Emp Share", "Flags"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "11px 14px", fontSize: 10, fontWeight: 700, color: AU.textMuted, textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "'Outfit', sans-serif" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {riskData.map(j => {
+              const rl = riskLevelConfig[j.riskLevel];
+              return (
+                <tr key={j.country} style={{ borderBottom: `1px solid ${AU.border}` }}>
+                  <td style={{ padding: "12px 14px" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: AU.gold, fontFamily: "'Outfit', sans-serif" }}>{j.country}</div>
+                    <div style={{ fontSize: 10, color: AU.textMuted }}>{j.countryName}</div>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}><Badge label={rl.label} color={rl.color} bg={rl.bg} /></td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: j.etr !== null ? (j.etr < 15 ? AU.red : AU.textSoft) : AU.textDim, fontFamily: "'Outfit', sans-serif" }}>
+                      {j.etr !== null ? `${j.etr.toFixed(1)}%` : "N/A"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: j.lowSubstance ? AU.red : AU.textSoft, fontFamily: "'Outfit', sans-serif" }}>
+                        {j.ppe !== null ? `\u20AC${Math.round(j.ppe / 1000)}K` : "N/A"}
+                      </span>
+                      <Bar value={j.ppe || 0} max={700000} color={j.lowSubstance ? AU.red : AU.textMuted} width={50} />
+                    </div>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <span style={{ fontSize: 12, color: AU.textMuted, fontFamily: "'Outfit', sans-serif" }}>
+                      {j.rpe !== null ? `\u20AC${Math.round(j.rpe / 1000)}K` : "N/A"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Bar value={parseFloat(j.profitShare)} max={40} color={j.concentrationRisk ? AU.amber : AU.textMuted} width={50} />
+                      <span style={{ fontSize: 11, color: AU.textMuted }}>{j.profitShare}%</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Bar value={parseFloat(j.empShare)} max={40} color={AU.textMuted} width={50} />
+                      <span style={{ fontSize: 11, color: AU.textMuted }}>{j.empShare}%</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {j.pillarTwo && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 2, background: AU.redBg, color: AU.red, fontWeight: 700 }}>P2</span>}
+                      {j.lowSubstance && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 2, background: AU.amberBg, color: AU.amber, fontWeight: 700 }}>LOW SUB</span>}
+                      {j.concentrationRisk && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 2, background: AU.purpleBg, color: AU.purple, fontWeight: 700 }}>CONC</span>}
+                      {!j.pillarTwo && !j.lowSubstance && !j.concentrationRisk && <span style={{ color: AU.textDim, fontSize: 10 }}>—</span>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* ── Public Optics Assessment ── */}
+      <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700, marginBottom: 12, fontFamily: "'Outfit', sans-serif" }}>Public Optics Assessment</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+        {riskData.filter(j => j.pillarTwo || j.lowSubstance || j.concentrationRisk).map(j => (
+          <Card key={j.country} gold style={{ padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                background: riskLevelConfig[j.riskLevel].bg,
+                border: `1px solid ${riskLevelConfig[j.riskLevel].color}30`,
+                fontSize: 14, flexShrink: 0,
+              }}>
+                {j.riskLevel === "critical" ? "🔴" : "🟡"}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: AU.gold, fontFamily: "'Outfit', sans-serif" }}>{j.country} — {j.countryName}</span>
+                  <Badge label={riskLevelConfig[j.riskLevel].label} color={riskLevelConfig[j.riskLevel].color} bg={riskLevelConfig[j.riskLevel].bg} />
+                </div>
+                <div style={{ fontSize: 12, color: AU.textSoft, lineHeight: 1.7 }}>
+                  {j.pillarTwo && <div>ETR of {j.etr.toFixed(1)}% is below the 15% Pillar Two minimum. Potential top-up tax exposure if GloBE rules apply.</div>}
+                  {j.lowSubstance && <div>Profit per employee (\u20AC{Math.round(j.ppe / 1000)}K) is {Math.round(j.ppe / groupPPE)}x the group average. May attract substance scrutiny under public disclosure.</div>}
+                  {j.concentrationRisk && <div>Holds {j.profitShare}% of group profit with only {j.empShare}% of employees. Concentration pattern visible in public report.</div>}
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* ── Risk Summary ── */}
+      <Card gold style={{ padding: 18 }}>
+        <div style={{ fontSize: 10, color: AU.gold, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 10, fontFamily: "'Outfit', sans-serif" }}>Risk Summary · Draft Advisory Note</div>
+        <div style={{ fontSize: 12, color: AU.textSoft, lineHeight: 1.8 }}>
+          The Nordveld Group CbCR data reveals three jurisdictions with elevated risk profiles. Ireland (ETR 12.5%) and Singapore (ETR 5.0%) both fall below the Pillar Two 15% threshold. Singapore additionally shows extreme profit concentration: \u20AC622K profit per employee versus the group average of \u20AC{Math.round(groupPPE / 1000)}K, with only {riskData.find(j => j.country === "SG")?.empShare}% of the workforce generating {riskData.find(j => j.country === "SG")?.profitShare}% of profit. Ireland presents a similar low-substance pattern with \u20AC{Math.round(riskData.find(j => j.country === "IE")?.ppe / 1000)}K profit per employee. These patterns will be visible in the published CbCR report and may attract regulatory or public scrutiny. Brazil shows negative profit with zero tax, which while explainable, requires supporting documentation. Recommend prioritizing substance documentation for SG and IE, and confirming Pillar Two exposure assessment with the client.
+        </div>
+        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+          <Badge label="Draft" color={AU.amber} bg={AU.amberBg} />
+          <span style={{ fontSize: 10, color: AU.textDim, lineHeight: 2 }}>Generated for advisor review — not a legal or tax conclusion</span>
+        </div>
+      </Card>
     </div>
   );
 }
